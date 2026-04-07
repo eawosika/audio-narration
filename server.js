@@ -12,19 +12,16 @@ const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'pNInz6obpgDQGcFmaJgB';
 const MODEL_ID = 'eleven_monolingual_v1';
 const MAX_CHUNK_CHARS = 4500;
 
-// Railway volume mount path — you'll configure this in Railway's dashboard.
-// If not set, falls back to a local ./audio folder (for local dev).
 const AUDIO_DIR = process.env.AUDIO_DIR || './audio';
 
-// The public base URL of this Railway service (e.g. https://rialo-narration.up.railway.app)
 const BASE_URL = process.env.RAILWAY_PUBLIC_DOMAIN
   ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
   : `http://localhost:${process.env.PORT || 3001}`;
 
-// Ensure audio directory exists on startup
+const RIALO_BASE = 'https://www.rialo.io';
+
 await fs.mkdir(AUDIO_DIR, { recursive: true });
 
-// Serve the audio files as static assets
 app.use('/audio', express.static(AUDIO_DIR, {
   maxAge: '365d',
   immutable: true,
@@ -34,7 +31,6 @@ app.use('/audio', express.static(AUDIO_DIR, {
   },
 }));
 
-// CORS — allow your Rialo domain to call this service
 app.use((req, res, next) => {
   res.set('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGIN || '*');
   res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -104,17 +100,100 @@ async function fileExists(filepath) {
   }
 }
 
+// Fetch a Rialo blog post and extract the article text
+async function fetchArticleText(slug) {
+  const url = `${RIALO_BASE}/posts/${slug}`;
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch ${url}: ${res.status}`);
+  }
+
+  const html = await res.text();
+
+  // Extract text from the rich text block
+  // Look for content between common Webflow rich text markers
+  let text = '';
+
+  // Try to find the rich text content block
+  const richTextMatch = html.match(/<div[^>]*class="[^"]*w-richtext[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/i);
+
+  if (richTextMatch) {
+    // Strip HTML tags to get plain text
+    text = richTextMatch[1]
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  if (!text) {
+    // Fallback: grab all paragraph text from the page body
+    const paragraphs = [];
+    const pMatches = html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi);
+    for (const m of pMatches) {
+      const clean = m[1]
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (clean.length > 20) paragraphs.push(clean);
+    }
+    text = paragraphs.join(' ');
+  }
+
+  if (!text || text.length < 50) {
+    throw new Error('Could not extract meaningful article text from the page.');
+  }
+
+  return text.slice(0, 50000);
+}
+
+// Core generate function used by multiple routes
+async function generateAudio(postId, text) {
+  const hash = hashText(text);
+  const filename = getFilename(postId, hash);
+  const filepath = path.join(AUDIO_DIR, filename);
+
+  if (await fileExists(filepath)) {
+    return { url: `${BASE_URL}/audio/${filename}`, cached: true };
+  }
+
+  const chunks = chunkText(text);
+  console.log(`Generating audio for "${postId}": ${chunks.length} chunk(s), ${text.length} chars`);
+
+  const audioBuffers = [];
+  for (const chunk of chunks) {
+    audioBuffers.push(await generateChunkAudio(chunk));
+  }
+
+  const fullAudio = Buffer.concat(audioBuffers);
+  await fs.writeFile(filepath, fullAudio);
+
+  const url = `${BASE_URL}/audio/${filename}`;
+  console.log(`Audio cached: ${url}`);
+
+  return { url, cached: false };
+}
+
 // ── Routes ──────────────────────────────────────────────
 
 /**
  * GET /api/narration/:postId
  *
  * Check if audio exists for a post.
- * Query: ?hash=<textHash>
- *
- * Returns:
- *   { exists: true, url: "https://your-app.up.railway.app/audio/post_abc123.mp3" }
- *   { exists: false }
  */
 app.get('/api/narration/:postId', async (req, res) => {
   try {
@@ -122,7 +201,6 @@ app.get('/api/narration/:postId', async (req, res) => {
     const { hash } = req.query;
 
     if (!hash) {
-      // Without a hash, try to find any file matching this postId
       const files = await fs.readdir(AUDIO_DIR);
       const match = files.find(f => f.startsWith(`${postId}_`) && f.endsWith('.mp3'));
 
@@ -151,9 +229,6 @@ app.get('/api/narration/:postId', async (req, res) => {
  *
  * Generate + cache audio for a blog post.
  * Body: { text: string }
- *
- * Returns:
- *   { url: "...", cached: boolean }
  */
 app.post('/api/narration/:postId/generate', async (req, res) => {
   try {
@@ -168,36 +243,54 @@ app.post('/api/narration/:postId/generate', async (req, res) => {
       return res.status(400).json({ error: 'Article text exceeds 50,000 character limit' });
     }
 
-    const hash = hashText(text);
-    const filename = getFilename(postId, hash);
-    const filepath = path.join(AUDIO_DIR, filename);
-
-    // Return cached version if it exists
-    if (await fileExists(filepath)) {
-      return res.json({ url: `${BASE_URL}/audio/${filename}`, cached: true });
-    }
-
-    // Generate audio
-    const chunks = chunkText(text);
-    console.log(`Generating audio for "${postId}": ${chunks.length} chunk(s), ${text.length} chars`);
-
-    const audioBuffers = [];
-    for (const chunk of chunks) {
-      audioBuffers.push(await generateChunkAudio(chunk));
-    }
-
-    const fullAudio = Buffer.concat(audioBuffers);
-
-    // Save to disk
-    await fs.writeFile(filepath, fullAudio);
-
-    const url = `${BASE_URL}/audio/${filename}`;
-    console.log(`Audio cached: ${url}`);
-
-    res.json({ url, cached: false });
+    const result = await generateAudio(postId, text);
+    res.json(result);
   } catch (err) {
     console.error('POST /api/narration/generate error:', err);
     res.status(500).json({ error: 'Failed to generate narration' });
+  }
+});
+
+/**
+ * GET /api/narration/:postId/auto-generate
+ *
+ * Fetches the article text from rialo.io automatically and generates audio.
+ * No request body needed — just visit the URL in your browser.
+ *
+ * Example: /api/narration/bringing-private-credit-onchain/auto-generate
+ */
+app.get('/api/narration/:postId/auto-generate', async (req, res) => {
+  try {
+    const { postId } = req.params;
+
+    // Check if already cached
+    const files = await fs.readdir(AUDIO_DIR);
+    const existing = files.find(f => f.startsWith(`${postId}_`) && f.endsWith('.mp3'));
+    if (existing) {
+      return res.json({
+        status: 'already_cached',
+        url: `${BASE_URL}/audio/${existing}`,
+        slug: postId
+      });
+    }
+
+    console.log(`Auto-generating audio for: ${postId}`);
+    console.log(`Fetching article from: ${RIALO_BASE}/posts/${postId}`);
+
+    const text = await fetchArticleText(postId);
+    console.log(`Extracted ${text.length} chars of article text`);
+
+    const result = await generateAudio(postId, text);
+
+    res.json({
+      status: result.cached ? 'already_cached' : 'generated',
+      url: result.url,
+      slug: postId,
+      textLength: text.length
+    });
+  } catch (err) {
+    console.error('Auto-generate error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -215,23 +308,8 @@ app.post('/api/narration/webhook', async (req, res) => {
       return res.status(400).json({ error: 'Missing postId or text' });
     }
 
-    const hash = hashText(text);
-    const filename = getFilename(postId, hash);
-    const filepath = path.join(AUDIO_DIR, filename);
-
-    if (await fileExists(filepath)) {
-      return res.json({ status: 'already_cached', url: `${BASE_URL}/audio/${filename}` });
-    }
-
-    const chunks = chunkText(text);
-    const audioBuffers = [];
-    for (const chunk of chunks) {
-      audioBuffers.push(await generateChunkAudio(chunk));
-    }
-
-    await fs.writeFile(filepath, Buffer.concat(audioBuffers));
-
-    res.json({ status: 'generated', url: `${BASE_URL}/audio/${filename}` });
+    const result = await generateAudio(postId, text);
+    res.json({ status: result.cached ? 'already_cached' : 'generated', url: result.url });
   } catch (err) {
     console.error('Webhook error:', err);
     res.status(500).json({ error: 'Failed to generate narration' });
@@ -240,7 +318,6 @@ app.post('/api/narration/webhook', async (req, res) => {
 
 /**
  * GET /health
- * Simple health check for Railway.
  */
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
