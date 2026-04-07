@@ -119,17 +119,26 @@ async function fetchArticleText(slug) {
   const richTextMatch = html.match(/<div[^>]*class="[^"]*w-richtext[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/i);
 
   if (richTextMatch) {
-    // Strip HTML tags to get plain text
     text = richTextMatch[1]
+      // Remove hidden elements and copy-link helpers
+      .replace(/<[^>]*class="[^"]*w-condition-invisible[^"]*"[^>]*>[\s\S]*?<\/[^>]+>/gi, '')
+      .replace(/<a[^>]*class="[^"]*heading-link[^"]*"[^>]*>[\s\S]*?<\/a>/gi, '')
+      .replace(/<[^>]*style="[^"]*display:\s*none[^"]*"[^>]*>[\s\S]*?<\/[^>]+>/gi, '')
+      // Remove script and style tags
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      // Strip remaining HTML tags
       .replace(/<[^>]+>/g, ' ')
+      // Decode HTML entities
       .replace(/&nbsp;/g, ' ')
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'")
+      // Clean up "Copy header link" text that might remain
+      .replace(/Copy header link/gi, '')
+      .replace(/Copy link/gi, '')
       .replace(/\s+/g, ' ')
       .trim();
   }
