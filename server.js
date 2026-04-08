@@ -3,6 +3,9 @@ import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
 import NodeID3 from 'node-id3';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+const execFileAsync = promisify(execFile);
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
@@ -132,6 +135,23 @@ async function generateChunkAudio(text) {
     throw new Error(`ElevenLabs error ${res.status}: ${err}`);
   }
   return Buffer.from(await res.arrayBuffer());
+}
+
+async function fixMp3Duration(filepath) {
+  const tempPath = filepath + '.tmp.mp3';
+  try {
+    await execFileAsync('ffmpeg', [
+      '-i', filepath,
+      '-c', 'copy',
+      '-y',
+      tempPath
+    ]);
+    await fs.rename(tempPath, filepath);
+    console.log('Fixed MP3 duration header:', filepath);
+  } catch (err) {
+    console.error('ffmpeg fix failed (non-fatal):', err.message);
+    await fs.unlink(tempPath).catch(() => {});
+  }
 }
 
 function getFilename(postId, hash) {
@@ -352,6 +372,11 @@ async function generateAudio(postId, text, metadata = {}) {
 
   const fullAudio = Buffer.concat(audioBuffers);
   await fs.writeFile(filepath, fullAudio);
+
+  // Fix MP3 duration header for concatenated files
+  if (chunks.length > 1) {
+    await fixMp3Duration(filepath);
+  }
 
   // Write ID3 tags (title, artist, cover art, etc.)
   if (metadata.title || metadata.imageUrl) {
