@@ -8,10 +8,12 @@ app.use(express.json({ limit: '1mb' }));
 
 const ELEVEN_API_KEY = process.env.ELEVENLABS_API_KEY;
 const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'pNInz6obpgDQGcFmaJgB';
-const MODEL_ID = 'eleven_monolingual_v1';
+// Flash v2.5: half the credits (0.5 per char vs 1), faster generation, multilingual
+const MODEL_ID = 'eleven_flash_v2_5';
 const MAX_CHUNK_CHARS = 4500;
 
 const AUDIO_DIR = process.env.AUDIO_DIR || './audio';
+const CHUNKS_DIR = path.join(AUDIO_DIR, '.chunks');
 
 const BASE_URL = process.env.RAILWAY_PUBLIC_DOMAIN
   ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
@@ -20,6 +22,7 @@ const BASE_URL = process.env.RAILWAY_PUBLIC_DOMAIN
 const RIALO_BASE = 'https://www.rialo.io';
 
 await fs.mkdir(AUDIO_DIR, { recursive: true });
+await fs.mkdir(CHUNKS_DIR, { recursive: true });
 
 app.use('/audio', express.static(AUDIO_DIR, {
   maxAge: '365d',
@@ -37,6 +40,8 @@ app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
+
+// ── Helpers ─────────────────────────────────────────────
 
 function hashText(text) {
   return crypto.createHash('sha256').update(text).digest('hex').slice(0, 16);
@@ -57,6 +62,38 @@ function chunkText(text, maxChars = MAX_CHUNK_CHARS) {
   }
   if (current.trim()) chunks.push(current.trim());
   return chunks;
+}
+
+// Clean article text to remove things that sound bad when read aloud
+function cleanTextForSpeech(text) {
+  return text
+    // Remove URLs
+    .replace(/https?:\/\/[^\s)]+/g, '')
+    // Remove markdown-style links but keep the text: [text](url) -> text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // Remove image references and alt text patterns
+    .replace(/!\[[^\]]*\]/g, '')
+    // Remove citation markers like [1], [2], etc.
+    .replace(/\[\d+\]/g, '')
+    // Remove standalone special characters that don't read well
+    .replace(/[│┤├┐┘┌└─═]/g, '')
+    // Remove code blocks and inline code
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/`[^`]+`/g, '')
+    // Remove excessive punctuation
+    .replace(/\.{3,}/g, '.')
+    .replace(/\*{1,3}/g, '')
+    // Clean up mathematical notation that doesn't read well
+    .replace(/[𝗘𝗽𝗼𝗰𝗵𝗖𝗵𝗮𝗻𝗴𝗲𝗥𝗲𝗮𝗱𝘆𝗗𝗼𝗻𝗲]/g, function(c) {
+      // Map bold math chars back to normal ASCII
+      const bold = '𝗘𝗽𝗼𝗰𝗵𝗖𝗵𝗮𝗻𝗴𝗲𝗥𝗲𝗮𝗱𝘆𝗗𝗼𝗻𝗲';
+      const normal = 'EpochChangeReadyDone';
+      const idx = bold.indexOf(c);
+      return idx >= 0 ? normal[idx] : c;
+    })
+    // Normalize whitespace
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 async function generateChunkAudio(text) {
@@ -173,9 +210,14 @@ async function fetchArticleText(slug) {
     throw new Error('Could not extract meaningful article text from the page.');
   }
 
+  // Clean text for speech before returning
+  text = cleanTextForSpeech(text);
+
   return text.slice(0, 50000);
 }
 
+// Generate audio with chunk-level caching
+// If generation fails partway, already-generated chunks are preserved
 async function generateAudio(postId, text) {
   const hash = hashText(text);
   const filename = getFilename(postId, hash);
@@ -189,18 +231,41 @@ async function generateAudio(postId, text) {
   console.log(`Generating audio for "${postId}": ${chunks.length} chunk(s), ${text.length} chars`);
 
   const audioBuffers = [];
-  for (const chunk of chunks) {
-    audioBuffers.push(await generateChunkAudio(chunk));
+
+  for (let i = 0; i < chunks.length; i++) {
+    const chunkHash = hashText(chunks[i]);
+    const chunkFile = path.join(CHUNKS_DIR, `${postId}_${hash}_chunk${i}_${chunkHash}.mp3`);
+
+    // Check if this chunk was already generated (from a previous partial run)
+    if (await fileExists(chunkFile)) {
+      console.log(`  Chunk ${i + 1}/${chunks.length}: cached`);
+      audioBuffers.push(await fs.readFile(chunkFile));
+    } else {
+      console.log(`  Chunk ${i + 1}/${chunks.length}: generating (${chunks[i].length} chars)`);
+      const buffer = await generateChunkAudio(chunks[i]);
+      // Save chunk to disk before continuing
+      await fs.writeFile(chunkFile, buffer);
+      audioBuffers.push(buffer);
+    }
   }
 
   const fullAudio = Buffer.concat(audioBuffers);
   await fs.writeFile(filepath, fullAudio);
+
+  // Clean up chunk files after successful merge
+  for (let i = 0; i < chunks.length; i++) {
+    const chunkHash = hashText(chunks[i]);
+    const chunkFile = path.join(CHUNKS_DIR, `${postId}_${hash}_chunk${i}_${chunkHash}.mp3`);
+    await fs.unlink(chunkFile).catch(() => {});
+  }
 
   const url = `${BASE_URL}/audio/${filename}`;
   console.log(`Audio cached: ${url}`);
 
   return { url, cached: false };
 }
+
+// ── Routes ──────────────────────────────────────────────
 
 app.get('/api/narration/:postId', async (req, res) => {
   try {
@@ -243,7 +308,8 @@ app.post('/api/narration/:postId/generate', async (req, res) => {
       return res.status(400).json({ error: 'Article text exceeds 50,000 character limit' });
     }
 
-    const result = await generateAudio(postId, text);
+    const cleaned = cleanTextForSpeech(text);
+    const result = await generateAudio(postId, cleaned);
     res.json(result);
   } catch (err) {
     console.error('POST /api/narration/generate error:', err);
@@ -283,7 +349,6 @@ app.get('/api/narration/:postId/auto-generate', async (req, res) => {
   }
 });
 
-// Delete cached audio for a post so it can be re-generated
 app.get('/api/narration/:postId/delete', async (req, res) => {
   try {
     const { postId } = req.params;
@@ -296,6 +361,13 @@ app.get('/api/narration/:postId/delete', async (req, res) => {
 
     for (const file of matches) {
       await fs.unlink(path.join(AUDIO_DIR, file));
+    }
+
+    // Also clean up any leftover chunks
+    const chunkFiles = await fs.readdir(CHUNKS_DIR).catch(() => []);
+    const chunkMatches = chunkFiles.filter(f => f.startsWith(`${postId}_`));
+    for (const file of chunkMatches) {
+      await fs.unlink(path.join(CHUNKS_DIR, file)).catch(() => {});
     }
 
     res.json({ deleted: matches.length, files: matches });
@@ -311,7 +383,8 @@ app.post('/api/narration/webhook', async (req, res) => {
     if (!postId || !text) {
       return res.status(400).json({ error: 'Missing postId or text' });
     }
-    const result = await generateAudio(postId, text);
+    const cleaned = cleanTextForSpeech(text);
+    const result = await generateAudio(postId, cleaned);
     res.json({ status: result.cached ? 'already_cached' : 'generated', url: result.url });
   } catch (err) {
     console.error('Webhook error:', err);
