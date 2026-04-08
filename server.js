@@ -6,7 +6,6 @@ import path from 'path';
 const app = express();
 app.use(express.json({ limit: '1mb' }));
 
-// ── Config ──────────────────────────────────────────────
 const ELEVEN_API_KEY = process.env.ELEVENLABS_API_KEY;
 const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'pNInz6obpgDQGcFmaJgB';
 const MODEL_ID = 'eleven_monolingual_v1';
@@ -39,19 +38,15 @@ app.use((req, res, next) => {
   next();
 });
 
-// ── Helpers ─────────────────────────────────────────────
-
 function hashText(text) {
   return crypto.createHash('sha256').update(text).digest('hex').slice(0, 16);
 }
 
 function chunkText(text, maxChars = MAX_CHUNK_CHARS) {
   if (text.length <= maxChars) return [text];
-
   const sentences = text.match(/[^.!?]+[.!?]+[\s]*/g) || [text];
   const chunks = [];
   let current = '';
-
   for (const sentence of sentences) {
     if ((current + sentence).length > maxChars && current.length > 0) {
       chunks.push(current.trim());
@@ -78,12 +73,10 @@ async function generateChunkAudio(text) {
       voice_settings: { stability: 0.5, similarity_boost: 0.75 },
     }),
   });
-
   if (!res.ok) {
     const err = await res.text();
     throw new Error(`ElevenLabs error ${res.status}: ${err}`);
   }
-
   return Buffer.from(await res.arrayBuffer());
 }
 
@@ -100,51 +93,49 @@ async function fileExists(filepath) {
   }
 }
 
-// Fetch a Rialo blog post and extract the article text
 async function fetchArticleText(slug) {
   const url = `${RIALO_BASE}/posts/${slug}`;
   const res = await fetch(url);
-
   if (!res.ok) {
     throw new Error(`Failed to fetch ${url}: ${res.status}`);
   }
-
   const html = await res.text();
-
-  // Extract text from the rich text block
-  // Look for content between common Webflow rich text markers
   let text = '';
 
-  // Try to find the rich text content block
   const richTextMatch = html.match(/<div[^>]*class="[^"]*w-richtext[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/i);
 
   if (richTextMatch) {
     text = richTextMatch[1]
-      // Remove hidden elements and copy-link helpers
+      .replace(/<aside[^>]*id="panel"[^>]*>[\s\S]*?<\/aside>/gi, '')
+      .replace(/<button[^>]*id="openBtn"[^>]*>[\s\S]*?<\/button>/gi, '')
+      .replace(/<div[^>]*id="miniCard"[^>]*>[\s\S]*?<\/div>/gi, '')
+      .replace(/<button[^>]*id="mobileAskBtn"[^>]*>[\s\S]*?<\/button>/gi, '')
+      .replace(/<div[^>]*id="narration-player"[^>]*>[\s\S]*?<\/div>\s*<\/div>/gi, '')
       .replace(/<[^>]*class="[^"]*w-condition-invisible[^"]*"[^>]*>[\s\S]*?<\/[^>]+>/gi, '')
       .replace(/<a[^>]*class="[^"]*heading-link[^"]*"[^>]*>[\s\S]*?<\/a>/gi, '')
       .replace(/<[^>]*style="[^"]*display:\s*none[^"]*"[^>]*>[\s\S]*?<\/[^>]+>/gi, '')
-      // Remove script and style tags
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-      // Strip remaining HTML tags
       .replace(/<[^>]+>/g, ' ')
-      // Decode HTML entities
       .replace(/&nbsp;/g, ' ')
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'")
-      // Clean up "Copy header link" text that might remain
       .replace(/Copy header link/gi, '')
       .replace(/Copy link/gi, '')
+      .replace(/Explore this article with AI/gi, '')
+      .replace(/Rialo Readerbot/gi, '')
+      .replace(/Keep reading with AI/gi, '')
+      .replace(/Open Readerbot/gi, '')
+      .replace(/Ask about this article/gi, '')
+      .replace(/Ask AI/gi, '')
       .replace(/\s+/g, ' ')
       .trim();
   }
 
   if (!text) {
-    // Fallback: grab all paragraph text from the page body
     const paragraphs = [];
     const pMatches = html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi);
     for (const m of pMatches) {
@@ -170,7 +161,6 @@ async function fetchArticleText(slug) {
   return text.slice(0, 50000);
 }
 
-// Core generate function used by multiple routes
 async function generateAudio(postId, text) {
   const hash = hashText(text);
   const filename = getFilename(postId, hash);
@@ -197,13 +187,6 @@ async function generateAudio(postId, text) {
   return { url, cached: false };
 }
 
-// ── Routes ──────────────────────────────────────────────
-
-/**
- * GET /api/narration/:postId
- *
- * Check if audio exists for a post.
- */
 app.get('/api/narration/:postId', async (req, res) => {
   try {
     const { postId } = req.params;
@@ -212,7 +195,6 @@ app.get('/api/narration/:postId', async (req, res) => {
     if (!hash) {
       const files = await fs.readdir(AUDIO_DIR);
       const match = files.find(f => f.startsWith(`${postId}_`) && f.endsWith('.mp3'));
-
       if (match) {
         return res.json({ exists: true, url: `${BASE_URL}/audio/${match}` });
       }
@@ -233,12 +215,6 @@ app.get('/api/narration/:postId', async (req, res) => {
   }
 });
 
-/**
- * POST /api/narration/:postId/generate
- *
- * Generate + cache audio for a blog post.
- * Body: { text: string }
- */
 app.post('/api/narration/:postId/generate', async (req, res) => {
   try {
     const { postId } = req.params;
@@ -260,19 +236,10 @@ app.post('/api/narration/:postId/generate', async (req, res) => {
   }
 });
 
-/**
- * GET /api/narration/:postId/auto-generate
- *
- * Fetches the article text from rialo.io automatically and generates audio.
- * No request body needed — just visit the URL in your browser.
- *
- * Example: /api/narration/bringing-private-credit-onchain/auto-generate
- */
 app.get('/api/narration/:postId/auto-generate', async (req, res) => {
   try {
     const { postId } = req.params;
 
-    // Check if already cached
     const files = await fs.readdir(AUDIO_DIR);
     const existing = files.find(f => f.startsWith(`${postId}_`) && f.endsWith('.mp3'));
     if (existing) {
@@ -284,8 +251,6 @@ app.get('/api/narration/:postId/auto-generate', async (req, res) => {
     }
 
     console.log(`Auto-generating audio for: ${postId}`);
-    console.log(`Fetching article from: ${RIALO_BASE}/posts/${postId}`);
-
     const text = await fetchArticleText(postId);
     console.log(`Extracted ${text.length} chars of article text`);
 
@@ -303,20 +268,34 @@ app.get('/api/narration/:postId/auto-generate', async (req, res) => {
   }
 });
 
-/**
- * POST /api/narration/webhook
- *
- * Pre-generate audio when a post is published.
- * Body: { postId: string, text: string }
- */
+// Delete cached audio for a post so it can be re-generated
+app.delete('/api/narration/:postId', async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const files = await fs.readdir(AUDIO_DIR);
+    const matches = files.filter(f => f.startsWith(`${postId}_`) && f.endsWith('.mp3'));
+
+    if (matches.length === 0) {
+      return res.json({ deleted: 0, message: 'No cached audio found for this post.' });
+    }
+
+    for (const file of matches) {
+      await fs.unlink(path.join(AUDIO_DIR, file));
+    }
+
+    res.json({ deleted: matches.length, files: matches });
+  } catch (err) {
+    console.error('DELETE /api/narration error:', err);
+    res.status(500).json({ error: 'Failed to delete cached audio' });
+  }
+});
+
 app.post('/api/narration/webhook', async (req, res) => {
   try {
     const { postId, text } = req.body;
-
     if (!postId || !text) {
       return res.status(400).json({ error: 'Missing postId or text' });
     }
-
     const result = await generateAudio(postId, text);
     res.json({ status: result.cached ? 'already_cached' : 'generated', url: result.url });
   } catch (err) {
@@ -325,11 +304,7 @@ app.post('/api/narration/webhook', async (req, res) => {
   }
 });
 
-/**
- * GET /health
- */
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// ── Start ───────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Narration service running on :${PORT}`));
