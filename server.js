@@ -365,6 +365,27 @@ app.get('/api/narration/:postId/auto-generate', async (req, res) => {
   }
 });
 
+app.get('/api/narration/:postId/download', async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const files = await fs.readdir(AUDIO_DIR);
+    const match = files.find(f => f.startsWith(`${postId}_`) && f.endsWith('.mp3'));
+
+    if (!match) {
+      return res.status(404).json({ error: 'No audio found for this post.' });
+    }
+
+    const filepath = path.join(AUDIO_DIR, match);
+    res.set('Content-Type', 'audio/mpeg');
+    res.set('Content-Disposition', `attachment; filename="${postId}.mp3"`);
+    const file = await fs.readFile(filepath);
+    res.send(file);
+  } catch (err) {
+    console.error('Download error:', err);
+    res.status(500).json({ error: 'Failed to download audio' });
+  }
+});
+
 app.get('/api/narration/:postId/delete', async (req, res) => {
   try {
     const { postId } = req.params;
