@@ -269,7 +269,7 @@ app.get('/api/narration/:postId/auto-generate', async (req, res) => {
 });
 
 // Delete cached audio for a post so it can be re-generated
-app.delete('/api/narration/:postId', async (req, res) => {
+app.get('/api/narration/:postId/delete', async (req, res) => {
   try {
     const { postId } = req.params;
     const files = await fs.readdir(AUDIO_DIR);
