@@ -2,6 +2,7 @@ import express from 'express';
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
+import NodeID3 from 'node-id3';
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
@@ -146,6 +147,94 @@ async function fileExists(filepath) {
   }
 }
 
+async function fetchArticleMetadata(slug) {
+  const url = `${RIALO_BASE}/posts/${slug}`;
+  const res = await fetch(url);
+  if (!res.ok) return {};
+  const html = await res.text();
+
+  let title = '';
+  let summary = '';
+  let imageUrl = '';
+
+  // Extract title from h1
+  const titleMatch = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+  if (titleMatch) {
+    title = titleMatch[1].replace(/<[^>]+>/g, '').trim();
+  }
+
+  // Extract summary - text after "Summary" heading
+  const summaryMatch = html.match(/Summary<\/[^>]+>([\s\S]*?)(?=<(?:h[1-6]|div[^>]*class="[^"]*blog-content))/i);
+  if (summaryMatch) {
+    summary = summaryMatch[1]
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  // Extract featured image - first large image in the post content area
+  const imageMatches = html.matchAll(/<img[^>]*src="(https:\/\/cdn\.prod\.website-files\.com\/6883572e6ebf68cfe676dd77\/[^"]+)"[^>]*>/gi);
+  for (const m of imageMatches) {
+    const src = m[1];
+    // Skip small icons and logos
+    if (!src.includes('logo') && !src.includes('close') && !src.includes('discord') && !src.includes('telegram') && !src.includes('Vector')) {
+      imageUrl = src;
+      break;
+    }
+  }
+
+  return { title, summary, imageUrl };
+}
+
+async function tagMp3(filepath, metadata) {
+  try {
+    const tags = {
+      title: metadata.title || '',
+      artist: 'Rialo',
+      album: 'Rialo Blog',
+      comment: {
+        language: 'eng',
+        text: metadata.summary || ''
+      },
+      userDefinedUrl: [{
+        description: 'Source',
+        url: metadata.sourceUrl || ''
+      }]
+    };
+
+    // Download and embed the featured image as cover art
+    if (metadata.imageUrl) {
+      try {
+        const imgRes = await fetch(metadata.imageUrl);
+        if (imgRes.ok) {
+          const imgBuffer = Buffer.from(await imgRes.arrayBuffer());
+          const contentType = imgRes.headers.get('content-type') || 'image/png';
+          let mimeType = 'image/png';
+          if (contentType.includes('jpeg') || contentType.includes('jpg')) mimeType = 'image/jpeg';
+          else if (contentType.includes('webp')) mimeType = 'image/webp';
+
+          tags.image = {
+            mime: mimeType,
+            type: { id: 3, name: 'front cover' },
+            description: 'Article featured image',
+            imageBuffer: imgBuffer
+          };
+        }
+      } catch (imgErr) {
+        console.error('Failed to download cover image:', imgErr.message);
+      }
+    }
+
+    NodeID3.write(tags, filepath);
+    console.log(`ID3 tags written for: ${metadata.title || filepath}`);
+  } catch (err) {
+    // Don't fail the whole process if tagging fails
+    console.error('Failed to write ID3 tags:', err.message);
+  }
+}
+
 async function fetchArticleText(slug) {
   const url = `${RIALO_BASE}/posts/${slug}`;
   const res = await fetch(url);
@@ -232,9 +321,7 @@ async function fetchArticleText(slug) {
   return text.slice(0, 50000);
 }
 
-// Generate audio with chunk-level caching
-// If generation fails partway, already-generated chunks are preserved
-async function generateAudio(postId, text) {
+async function generateAudio(postId, text, metadata = {}) {
   const hash = hashText(text);
   const filename = getFilename(postId, hash);
   const filepath = path.join(AUDIO_DIR, filename);
@@ -252,14 +339,12 @@ async function generateAudio(postId, text) {
     const chunkHash = hashText(chunks[i]);
     const chunkFile = path.join(CHUNKS_DIR, `${postId}_${hash}_chunk${i}_${chunkHash}.mp3`);
 
-    // Check if this chunk was already generated (from a previous partial run)
     if (await fileExists(chunkFile)) {
       console.log(`  Chunk ${i + 1}/${chunks.length}: cached`);
       audioBuffers.push(await fs.readFile(chunkFile));
     } else {
       console.log(`  Chunk ${i + 1}/${chunks.length}: generating (${chunks[i].length} chars)`);
       const buffer = await generateChunkAudio(chunks[i]);
-      // Save chunk to disk before continuing
       await fs.writeFile(chunkFile, buffer);
       audioBuffers.push(buffer);
     }
@@ -268,7 +353,11 @@ async function generateAudio(postId, text) {
   const fullAudio = Buffer.concat(audioBuffers);
   await fs.writeFile(filepath, fullAudio);
 
-  // Clean up chunk files after successful merge
+  // Write ID3 tags (title, artist, cover art, etc.)
+  if (metadata.title || metadata.imageUrl) {
+    await tagMp3(filepath, { ...metadata, sourceUrl: `${RIALO_BASE}/posts/${postId}` });
+  }
+
   for (let i = 0; i < chunks.length; i++) {
     const chunkHash = hashText(chunks[i]);
     const chunkFile = path.join(CHUNKS_DIR, `${postId}_${hash}_chunk${i}_${chunkHash}.mp3`);
@@ -314,7 +403,7 @@ app.get('/api/narration/:postId', async (req, res) => {
 app.post('/api/narration/:postId/generate', async (req, res) => {
   try {
     const { postId } = req.params;
-    const { text } = req.body;
+    const { text, title, summary, imageUrl } = req.body;
 
     if (!text || typeof text !== 'string') {
       return res.status(400).json({ error: 'Missing or invalid "text" field' });
@@ -325,7 +414,8 @@ app.post('/api/narration/:postId/generate', async (req, res) => {
     }
 
     const cleaned = cleanTextForSpeech(text);
-    const result = await generateAudio(postId, cleaned);
+    const metadata = { title: title || '', summary: summary || '', imageUrl: imageUrl || '' };
+    const result = await generateAudio(postId, cleaned, metadata);
     res.json(result);
   } catch (err) {
     console.error('POST /api/narration/generate error:', err);
@@ -349,9 +439,10 @@ app.get('/api/narration/:postId/auto-generate', async (req, res) => {
 
     console.log(`Auto-generating audio for: ${postId}`);
     const text = await fetchArticleText(postId);
-    console.log(`Extracted ${text.length} chars of article text`);
+    const metadata = await fetchArticleMetadata(postId);
+    console.log(`Extracted ${text.length} chars, title: "${metadata.title}"`);
 
-    const result = await generateAudio(postId, text);
+    const result = await generateAudio(postId, text, metadata);
 
     res.json({
       status: result.cached ? 'already_cached' : 'generated',
