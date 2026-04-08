@@ -91,6 +91,22 @@ function cleanTextForSpeech(text) {
       const idx = bold.indexOf(c);
       return idx >= 0 ? normal[idx] : c;
     })
+    // Strip non-BMP unicode and unpaired surrogates that break ElevenLabs
+    .replace(/[\uD800-\uDFFF]/g, '')
+    .replace(/[^\x00-\x7F\xA0-\xFF\u0100-\uFFFF]/g, '')
+    // Replace common mathematical bold/italic unicode with ASCII equivalents
+    .replace(/[\u{1D400}-\u{1D7FF}]/gu, function(c) {
+      var cp = c.codePointAt(0);
+      // Bold capitals A-Z: U+1D400 to U+1D419
+      if (cp >= 0x1D400 && cp <= 0x1D419) return String.fromCharCode(cp - 0x1D400 + 65);
+      // Bold lowercase a-z: U+1D41A to U+1D433
+      if (cp >= 0x1D41A && cp <= 0x1D433) return String.fromCharCode(cp - 0x1D41A + 97);
+      // Sans-serif bold capitals: U+1D5D4 to U+1D5ED
+      if (cp >= 0x1D5D4 && cp <= 0x1D5ED) return String.fromCharCode(cp - 0x1D5D4 + 65);
+      // Sans-serif bold lowercase: U+1D5EE to U+1D607
+      if (cp >= 0x1D5EE && cp <= 0x1D607) return String.fromCharCode(cp - 0x1D5EE + 97);
+      return '';
+    })
     // Normalize whitespace
     .replace(/\s+/g, ' ')
     .trim();
