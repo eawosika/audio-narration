@@ -100,22 +100,39 @@ async function fetchArticleText(slug) {
     throw new Error(`Failed to fetch ${url}: ${res.status}`);
   }
   const html = await res.text();
+
+  let cleaned = html
+    .replace(/<aside[^>]*id="panel"[^>]*>[\s\S]*?<\/aside>/gi, '')
+    .replace(/<button[^>]*id="openBtn"[^>]*>[\s\S]*?<\/button>/gi, '')
+    .replace(/<div[^>]*id="miniCard"[^>]*>[\s\S]*?<\/div>/gi, '')
+    .replace(/<button[^>]*id="mobileAskBtn"[^>]*>[\s\S]*?<\/button>/gi, '')
+    .replace(/<div[^>]*id="narration-player"[^>]*>[\s\S]*?<\/div>\s*<\/div>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
+    .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
+    .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
+    .replace(/<[^>]*class="[^"]*w-condition-invisible[^"]*"[^>]*>[\s\S]*?<\/[^>]+>/gi, '')
+    .replace(/<a[^>]*class="[^"]*heading-link[^"]*"[^>]*>[\s\S]*?<\/a>/gi, '')
+    .replace(/<[^>]*style="[^"]*display:\s*none[^"]*"[^>]*>[\s\S]*?<\/[^>]+>/gi, '');
+
+  const richTextMatch = cleaned.match(/<div[^>]*class="[^"]*w-richtext[^"]*"[^>]*>([\s\S]*)/i);
+
   let text = '';
 
-  const richTextMatch = html.match(/<div[^>]*class="[^"]*w-richtext[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/i);
-
   if (richTextMatch) {
-    text = richTextMatch[1]
-      .replace(/<aside[^>]*id="panel"[^>]*>[\s\S]*?<\/aside>/gi, '')
-      .replace(/<button[^>]*id="openBtn"[^>]*>[\s\S]*?<\/button>/gi, '')
-      .replace(/<div[^>]*id="miniCard"[^>]*>[\s\S]*?<\/div>/gi, '')
-      .replace(/<button[^>]*id="mobileAskBtn"[^>]*>[\s\S]*?<\/button>/gi, '')
-      .replace(/<div[^>]*id="narration-player"[^>]*>[\s\S]*?<\/div>\s*<\/div>/gi, '')
-      .replace(/<[^>]*class="[^"]*w-condition-invisible[^"]*"[^>]*>[\s\S]*?<\/[^>]+>/gi, '')
-      .replace(/<a[^>]*class="[^"]*heading-link[^"]*"[^>]*>[\s\S]*?<\/a>/gi, '')
-      .replace(/<[^>]*style="[^"]*display:\s*none[^"]*"[^>]*>[\s\S]*?<\/[^>]+>/gi, '')
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    let content = richTextMatch[1];
+
+    const endMarkers = [/<\/main>/i, /<footer/i, /<form/i, /<div[^>]*class="[^"]*w-nav/i];
+    for (const marker of endMarkers) {
+      const endMatch = content.search(marker);
+      if (endMatch > 0) {
+        content = content.slice(0, endMatch);
+        break;
+      }
+    }
+
+    text = content
       .replace(/<[^>]+>/g, ' ')
       .replace(/&nbsp;/g, ' ')
       .replace(/&amp;/g, '&')
@@ -131,22 +148,20 @@ async function fetchArticleText(slug) {
       .replace(/Open Readerbot/gi, '')
       .replace(/Ask about this article/gi, '')
       .replace(/Ask AI/gi, '')
+      .replace(/Listen to this article/gi, '')
+      .replace(/\d+:\d+\s*\/\s*\d+:\d+/g, '')
       .replace(/\s+/g, ' ')
       .trim();
   }
 
-  if (!text) {
+  if (!text || text.length < 50) {
     const paragraphs = [];
-    const pMatches = html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi);
+    const pMatches = cleaned.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi);
     for (const m of pMatches) {
       const clean = m[1]
         .replace(/<[^>]+>/g, ' ')
         .replace(/&nbsp;/g, ' ')
         .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
         .replace(/\s+/g, ' ')
         .trim();
       if (clean.length > 20) paragraphs.push(clean);
