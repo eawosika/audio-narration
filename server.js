@@ -72,50 +72,122 @@ function chunkText(text, maxChars = MAX_CHUNK_CHARS) {
   return chunks;
 }
 
-// Clean article text to remove things that sound bad when read aloud
 function cleanTextForSpeech(text) {
   return text
-    // Remove URLs
-    .replace(/https?:\/\/[^\s)]+/g, '')
-    // Remove markdown-style links but keep the text: [text](url) -> text
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    // Remove image references and alt text patterns
-    .replace(/!\[[^\]]*\]/g, '')
-    // Remove citation markers like [1], [2], etc.
+    // ── Footnotes ──
+    // Remove footnote reference numbers like [1], [2] and superscript markers
     .replace(/\[\d+\]/g, '')
-    // Remove standalone special characters that don't read well
-    .replace(/[│┤├┐┘┌└─═]/g, '')
-    // Remove code blocks and inline code
-    .replace(/```[\s\S]*?```/g, '')
-    .replace(/`[^`]+`/g, '')
-    // Remove excessive punctuation
-    .replace(/\.{3,}/g, '.')
-    .replace(/\*{1,3}/g, '')
-    // Clean up mathematical notation that doesn't read well
-    .replace(/[𝗘𝗽𝗼𝗰𝗵𝗖𝗵𝗮𝗻𝗴𝗲𝗥𝗲𝗮𝗱𝘆𝗗𝗼𝗻𝗲]/g, function(c) {
-      // Map bold math chars back to normal ASCII
-      const bold = '𝗘𝗽𝗼𝗰𝗵𝗖𝗵𝗮𝗻𝗴𝗲𝗥𝗲𝗮𝗱𝘆𝗗𝗼𝗻𝗲';
-      const normal = 'EpochChangeReadyDone';
-      const idx = bold.indexOf(c);
-      return idx >= 0 ? normal[idx] : c;
+    .replace(/\u00B9/g, '').replace(/\u00B2/g, '').replace(/\u00B3/g, '')
+    // Remove entire footnotes section (everything after "Footnotes" heading)
+    .replace(/Footnotes[\s\S]*$/i, '')
+
+    // ── Section headers as pauses ──
+    // Add a pause before headings so narrator breathes between sections
+    .replace(/([.!?])\s*(#{1,6}\s)/g, '$1\n\n.\n\n$2')
+    // If headings appear as standalone lines, add pause
+    .replace(/\n([A-Z][A-Za-z0-9 :,'\-]{5,80})\n/g, '\n\n.\n\n$1.\n\n')
+
+    // ── Acronyms and abbreviations ──
+    // Spell out common technical/finance acronyms
+    .replace(/\bEBITDA\b/g, 'E.B.I.T.D.A.')
+    .replace(/\bBFT\b/g, 'B.F.T.')
+    .replace(/\bSMR\b/g, 'S.M.R.')
+    .replace(/\bDKG\b/g, 'D.K.G.')
+    .replace(/\bLTV\b/g, 'L.T.V.')
+    .replace(/\bNAV\b/g, 'N.A.V.')
+    .replace(/\bAPI\b/g, 'A.P.I.')
+    .replace(/\bAPIs\b/g, 'A.P.I.s')
+    .replace(/\bERP\b/g, 'E.R.P.')
+    .replace(/\bRWA\b/g, 'R.W.A.')
+    .replace(/\bRWAs\b/g, 'R.W.A.s')
+    .replace(/\bMPC\b/g, 'M.P.C.')
+    .replace(/\bTPS\b/g, 'T.P.S.')
+    .replace(/\bREX\b/g, 'Rex')
+    .replace(/\bHTTPS\b/g, 'H.T.T.P.S.')
+    .replace(/\bDeFi\b/g, 'DeFi')
+    .replace(/\bIPC\b/g, 'I.P.C.')
+    .replace(/\bSVM\b/g, 'S.V.M.')
+    .replace(/\bEVM\b/g, 'E.V.M.')
+    .replace(/\bZK\b/g, 'Z.K.')
+    .replace(/\bCDP\b/g, 'C.D.P.')
+    .replace(/\bTLS\b/g, 'T.L.S.')
+    .replace(/\bPKI\b/g, 'P.K.I.')
+    .replace(/\bBCRED\b/g, 'B.C.R.E.D.')
+    .replace(/\bHLEND\b/g, 'H.L.E.N.D.')
+    // Generic: any remaining 2-4 letter all-caps words get spelled out
+    // (but skip common words like "IT", "OR", "AN", "AT", "IN", "ON", "TO", "DO", "IF", "IS", "OF", "SO", "UP", "US", "WE")
+    .replace(/\b([A-Z]{2,4})\b/g, function(match) {
+      var skip = ['IT','OR','AN','AT','IN','ON','TO','DO','IF','IS','OF','SO','UP','US','WE','NO','BY','BE','HE','ME','MY','OK'];
+      if (skip.indexOf(match) !== -1) return match;
+      // Check if it's already been spelled out (contains periods)
+      if (match.indexOf('.') !== -1) return match;
+      return match.split('').join('.') + '.';
     })
-    // Strip non-BMP unicode and unpaired surrogates that break ElevenLabs
+
+    // ── Mathematical notation ──
+    // Subscript unicode characters to spoken form
+    .replace(/[\u2080-\u2089]/g, function(c) {
+      return ' sub ' + (c.charCodeAt(0) - 0x2080);
+    })
+    // Superscript unicode characters
+    .replace(/[\u2070\u00B9\u00B2\u00B3\u2074-\u2079]/g, function(c) {
+      var map = {'\u2070':'0','\u00B9':'1','\u00B2':'2','\u00B3':'3','\u2074':'4','\u2075':'5','\u2076':'6','\u2077':'7','\u2078':'8','\u2079':'9'};
+      return ' to the power of ' + (map[c] || '');
+    })
+    // Common math symbols
+    .replace(/\u2264/g, ' less than or equal to ')
+    .replace(/\u2265/g, ' greater than or equal to ')
+    .replace(/\u2260/g, ' not equal to ')
+    .replace(/\u2248/g, ' approximately ')
+    .replace(/\u221E/g, ' infinity ')
+    .replace(/\u2208/g, ' in ')
+    .replace(/\u2209/g, ' not in ')
+    .replace(/\u2282/g, ' subset of ')
+    .replace(/\u222A/g, ' union ')
+    .replace(/\u2229/g, ' intersection ')
+    // Italic math letters (common in formal CS/math writing)
+    .replace(/\u{1D434}/gu, 'E').replace(/\u{1D456}/gu, 'i')
+    // Spoken math: "2.0x" becomes "2.0 times", "E_i" becomes "E sub i"
+    .replace(/(\d+\.?\d*)x\b/g, '$1 times')
+    .replace(/([A-Za-z])_([A-Za-z0-9])/g, '$1 sub $2')
+    .replace(/([A-Za-z])\^([A-Za-z0-9])/g, '$1 to the $2')
+    // Epoch notation: "epoch i" and "epoch i+1"
+    .replace(/epoch\s*(\d+)\s*\+\s*(\d+)/gi, 'epoch $1 plus $2')
+
+    // ── URLs ──
+    .replace(/https?:\/\/[^\s)]+/g, '')
+    // Markdown links: keep text, drop URL
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+
+    // ── Code and markup ──
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/!\[[^\]]*\]/g, '')
+    .replace(/\*{1,3}/g, '')
+
+    // ── Special characters ──
+    .replace(/[│┤├┐┘┌└─═]/g, '')
+    .replace(/\.{3,}/g, '.')
+
+    // ── Percentage and currency ──
+    .replace(/(\d+)\s*%/g, '$1 percent')
+    .replace(/\$(\d[\d,.]*)\s*(trillion|billion|million|thousand|[TBMK])\b/gi, '$1 $2 dollars')
+    .replace(/\$(\d[\d,.]*)/g, '$1 dollars')
+
+    // ── Strip non-BMP unicode and unpaired surrogates ──
     .replace(/[\uD800-\uDFFF]/g, '')
     .replace(/[^\x00-\x7F\xA0-\xFF\u0100-\uFFFF]/g, '')
-    // Replace common mathematical bold/italic unicode with ASCII equivalents
+    // Bold/italic math unicode to ASCII
     .replace(/[\u{1D400}-\u{1D7FF}]/gu, function(c) {
       var cp = c.codePointAt(0);
-      // Bold capitals A-Z: U+1D400 to U+1D419
       if (cp >= 0x1D400 && cp <= 0x1D419) return String.fromCharCode(cp - 0x1D400 + 65);
-      // Bold lowercase a-z: U+1D41A to U+1D433
       if (cp >= 0x1D41A && cp <= 0x1D433) return String.fromCharCode(cp - 0x1D41A + 97);
-      // Sans-serif bold capitals: U+1D5D4 to U+1D5ED
       if (cp >= 0x1D5D4 && cp <= 0x1D5ED) return String.fromCharCode(cp - 0x1D5D4 + 65);
-      // Sans-serif bold lowercase: U+1D5EE to U+1D607
       if (cp >= 0x1D5EE && cp <= 0x1D607) return String.fromCharCode(cp - 0x1D5EE + 97);
       return '';
     })
-    // Normalize whitespace
+
+    // ── Final cleanup ──
     .replace(/\s+/g, ' ')
     .trim();
 }
