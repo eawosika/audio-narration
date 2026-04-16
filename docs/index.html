@@ -157,51 +157,64 @@ function render(){
   ARTICLES.forEach(function(art){
     var s=art.slug;
     var row=document.createElement('div');row.className='article-row';row.id='row-'+s;
-    row.innerHTML='<div class="article-info"><div class="article-title"><a href="https://www.rialo.io/posts/'+s+'" target="_blank">'+art.title+'</a></div><div class="article-slug">'+s+'</div><div class="article-log" id="l-'+s+'"></div><div class="article-audio" id="aw-'+s+'"></div></div><div class="article-status" id="sw-'+s+'"><span class="status-badge status-none" id="s-'+s+'">...</span></div><div class="article-actions"><button class="btn btn-primary btn-sm" id="g-'+s+'">Generate</button><button class="btn btn-ghost btn-sm" id="p-'+s+'" style="display:none">Preview</button><button class="btn btn-ghost btn-sm" id="dl-'+s+'" style="display:none">Download</button><button class="btn btn-danger btn-sm" id="d-'+s+'">Delete</button></div>';
+
+    var info=document.createElement('div');info.className='article-info';
+    info.innerHTML='<div class="article-title"><a href="https://www.rialo.io/posts/'+s+'" target="_blank">'+art.title+'</a></div><div class="article-slug">'+s+'</div>';
+    var logEl=document.createElement('div');logEl.className='article-log';
+    var audioWrap=document.createElement('div');audioWrap.className='article-audio';
+    info.appendChild(logEl);
+    info.appendChild(audioWrap);
+
+    var statusWrap=document.createElement('div');statusWrap.className='article-status';
+    var badge=document.createElement('span');badge.className='status-badge status-none';badge.textContent='...';
+    statusWrap.appendChild(badge);
+
+    var actions=document.createElement('div');actions.className='article-actions';
+    var genBtn=document.createElement('button');genBtn.className='btn btn-primary btn-sm';genBtn.textContent='Generate';
+    var preBtn=document.createElement('button');preBtn.className='btn btn-ghost btn-sm';preBtn.textContent='Preview';preBtn.style.display='none';
+    var dlBtn=document.createElement('button');dlBtn.className='btn btn-ghost btn-sm';dlBtn.textContent='Download';dlBtn.style.display='none';
+    var delBtn=document.createElement('button');delBtn.className='btn btn-danger btn-sm';delBtn.textContent='Delete';
+    actions.appendChild(genBtn);actions.appendChild(preBtn);actions.appendChild(dlBtn);actions.appendChild(delBtn);
+
+    row.appendChild(info);row.appendChild(statusWrap);row.appendChild(actions);
     wrap.appendChild(row);
-    row.querySelector('#g-'+s).onclick=function(){gen(s)};
-    row.querySelector('#d-'+s).onclick=function(){del(s)};
-    row.querySelector('#p-'+s).onclick=function(){play(s)};
-    row.querySelector('#dl-'+s).onclick=function(){window.location.href=API+'/api/narration/'+s+'/download'};
-    chk(s);
+
+    genBtn.onclick=function(){
+      genBtn.disabled=true;genBtn.textContent='Working...';badge.textContent='Generating';badge.className='status-badge status-loading';logEl.textContent='';
+      fetch(API+'/api/narration/'+s+'/auto-generate').then(function(r){return r.json()}).then(function(d){
+        if(d.error){badge.textContent='Error';badge.className='status-badge status-error';logEl.textContent=d.error;statusMap[s]='er'}
+        else{logEl.textContent=(d.textLength||'?')+' chars';doChk()}
+      }).catch(function(err){badge.textContent='Error';badge.className='status-badge status-error';logEl.textContent=err.message;statusMap[s]='er'}).finally(function(){genBtn.disabled=false;genBtn.textContent='Generate';updateStats()})
+    };
+
+    delBtn.onclick=function(){
+      if(!confirm('Delete audio for this article?'))return;delBtn.disabled=true;
+      fetch(API+'/api/narration/'+s+'/delete').then(function(r){return r.json()}).then(function(d){logEl.textContent='Deleted '+(d.deleted||0)+' file(s)';doChk()}).catch(function(err){logEl.textContent=err.message}).finally(function(){delBtn.disabled=false})
+    };
+
+    preBtn.onclick=function(){
+      if(audioWrap.querySelector('audio')){audioWrap.innerHTML='';preBtn.textContent='Preview';return}
+      var a=document.createElement('audio');a.controls=true;a.src=preBtn.dataset.u;audioWrap.appendChild(a);a.play();preBtn.textContent='Hide'
+    };
+
+    dlBtn.onclick=function(){window.location.href=API+'/api/narration/'+s+'/download'};
+
+    function doChk(){
+      badge.textContent='...';badge.className='status-badge status-none';
+      fetch(API+'/api/narration/'+s).then(function(r){return r.json()}).then(function(d){
+        if(d.exists){badge.textContent='Ready';badge.className='status-badge status-cached';preBtn.style.display='inline-block';preBtn.dataset.u=d.url;dlBtn.style.display='inline-block';statusMap[s]='ok'}
+        else{badge.textContent='Missing';badge.className='status-badge status-none';preBtn.style.display='none';dlBtn.style.display='none';statusMap[s]='no'}
+        updateStats()
+      }).catch(function(){badge.textContent='Error';badge.className='status-badge status-error';statusMap[s]='er';updateStats()})
+    }
+    doChk();
   });
   c.appendChild(wrap);
   updateStats();
 }
 
-function chk(s){
-  var badge=document.getElementById('s-'+s),p=document.getElementById('p-'+s),dl=document.getElementById('dl-'+s);
-  badge.textContent='...';badge.className='status-badge status-none';
-  fetch(API+'/api/narration/'+s).then(function(r){return r.json()}).then(function(d){
-    if(d.exists){badge.textContent='Ready';badge.className='status-badge status-cached';p.style.display='inline-block';p.dataset.u=d.url;dl.style.display='inline-block';statusMap[s]='ok'}
-    else{badge.textContent='Missing';badge.className='status-badge status-none';p.style.display='none';dl.style.display='none';statusMap[s]='no'}
-    updateStats();
-  }).catch(function(){badge.textContent='Error';badge.className='status-badge status-error';statusMap[s]='er';updateStats()})
-}
-
-function gen(s){
-  var b=document.getElementById('g-'+s),l=document.getElementById('l-'+s),badge=document.getElementById('s-'+s);
-  b.disabled=true;b.textContent='Working...';badge.textContent='Generating';badge.className='status-badge status-loading';l.textContent='';
-  fetch(API+'/api/narration/'+s+'/auto-generate').then(function(r){return r.json()}).then(function(d){
-    if(d.error){badge.textContent='Error';badge.className='status-badge status-error';l.textContent=d.error;statusMap[s]='er'}
-    else{l.textContent=(d.textLength||'?')+' chars';chk(s)}
-  }).catch(function(err){badge.textContent='Error';badge.className='status-badge status-error';l.textContent=err.message;statusMap[s]='er'}).finally(function(){b.disabled=false;b.textContent='Generate';updateStats()})
-}
-
-function del(s){
-  if(!confirm('Delete audio for this article?'))return;
-  var b=document.getElementById('d-'+s),l=document.getElementById('l-'+s);b.disabled=true;
-  fetch(API+'/api/narration/'+s+'/delete').then(function(r){return r.json()}).then(function(d){l.textContent='Deleted '+(d.deleted||0)+' file(s)';chk(s)}).catch(function(err){l.textContent=err.message}).finally(function(){b.disabled=false})
-}
-
-function play(s){
-  var b=document.getElementById('p-'+s),w=document.getElementById('aw-'+s);
-  if(w.querySelector('audio')){w.innerHTML='';b.textContent='Preview';return}
-  var a=document.createElement('audio');a.controls=true;a.src=b.dataset.u;w.appendChild(a);a.play();b.textContent='Hide'
-}
-
-function genAll(){ARTICLES.forEach(function(art){if(statusMap[art.slug]!=='ok')gen(art.slug)})}
-function refreshAll(){ARTICLES.forEach(function(art){chk(art.slug)})}
+function genAll(){render();setTimeout(function(){ARTICLES.forEach(function(art){if(statusMap[art.slug]!=='ok'){var row=document.getElementById('row-'+art.slug);if(row){var btn=row.querySelector('.btn-primary');if(btn)btn.click()}}})},500)}
+function refreshAll(){render()}
 
 render();
 </script>
