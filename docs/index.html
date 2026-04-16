@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rialo Audio Narration</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#e8e3d5;color:#111;padding:40px 20px;max-width:720px;margin:0 auto}
+h1{font-size:24px;font-weight:700;margin-bottom:4px}
+.sub{color:#555;font-size:14px;margin-bottom:32px}
+.card{background:#f4f1e6;border:1.5px solid #111;border-radius:14px;padding:18px 22px;margin-bottom:14px;transition:box-shadow 0.15s}
+.card:hover{box-shadow:0 2px 12px rgba(0,0,0,0.06)}
+.ct{font-weight:600;font-size:16px;margin-bottom:2px}
+.ct a{color:#111;text-decoration:none}
+.ct a:hover{text-decoration:underline}
+.cs{font-size:13px;margin-bottom:12px;min-height:18px}
+.cs.ok{color:#2d7a2d}
+.cs.no{color:#999}
+.cs.ld{color:#b58900}
+.cs.er{color:#c0392b}
+.br{display:flex;gap:8px;flex-wrap:wrap}
+.b{padding:7px 16px;border-radius:10px;border:1.5px solid #111;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:inherit}
+.bg{background:#111;color:#fff}.bg:hover{background:#222}
+.bd{background:transparent;color:#111}.bd:hover{background:rgba(0,0,0,0.05)}
+.br2{background:transparent;color:#c0392b;border-color:#c0392b}.br2:hover{background:#c0392b;color:#fff}
+.b:disabled{opacity:0.35;cursor:default;pointer-events:none}
+.add{margin-top:28px}
+.ar{display:flex;gap:8px}
+.ai{flex:1;padding:11px 16px;border:1.5px solid #d8d2c3;border-radius:12px;font-size:15px;background:#fffdf9;outline:none;font-family:inherit}
+.ai:focus{border-color:#111}
+.ai::placeholder{color:#aaa}
+.lg{margin-top:8px;font-size:12px;color:#777;min-height:16px}
+audio{width:100%;margin-top:10px;border-radius:8px}
+.sep{height:1px;background:#d8d2c3;margin:28px 0}
+.foot{text-align:center;color:#aaa;font-size:12px;margin-top:32px}
+.foot a{color:#888;text-decoration:none}
+.foot a:hover{color:#111}
+.batch{margin-bottom:24px;display:flex;gap:8px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<h1>Rialo Audio Narration</h1>
+<p class="sub">Manage AI-generated narration for Rialo blog articles.</p>
+<div class="batch">
+<button class="b bg" onclick="genAll()">Generate All Missing</button>
+<button class="b bd" onclick="refreshAll()">Refresh Status</button>
+</div>
+<div id="list"></div>
+<div class="add"><div class="card"><div class="ct">Add article</div>
+<p style="font-size:13px;color:#555;margin-bottom:10px">Paste a slug or full rialo.io URL</p>
+<div class="ar"><input id="ns" class="ai" placeholder="e.g. my-new-article">
+<button class="b bg" onclick="addS()">Add</button></div>
+</div></div>
+<div class="sep"></div>
+<div class="foot"><a href="https://www.rialo.io/blog" target="_blank">Rialo Blog</a> &middot; <a href="https://github.com/eawosika/audio-narration" target="_blank">GitHub Repo</a></div>
+<script>
+var API='https://audio-narration-production.up.railway.app';
+var ARTICLES=[
+{slug:'bringing-private-credit-onchain',title:'How to Bring Private Credit Onchain'},
+{slug:'rethinking-protocol-upgrades-with-gauss',title:'Rethinking Protocol Upgrades with Gauss'},
+{slug:'understanding-distributed-key-generation',title:'Building Blocks of Threshold Cryptography: Distributed Key Generation'},
+{slug:'a-practical-guide-to-consistency-in-distributed-systems',title:'A Practical Guide to Consistency in Distributed Systems'},
+{slug:'supermodularity-and-system-welfare',title:'Supermodularity and System Welfare'}
+];
+function slugToTitle(s){for(var i=0;i<ARTICLES.length;i++){if(ARTICLES[i].slug===s)return ARTICLES[i].title}return s.replace(/-/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase()})}
+function addS(){var i=document.getElementById('ns'),s=i.value.trim().replace(/^https?:\/\/.*\/posts\//,'').replace(/\/$/,'');if(!s)return;if(!ARTICLES.some(function(a){return a.slug===s})){ARTICLES.push({slug:s,title:slugToTitle(s)});render()}i.value=''}
+function render(){var c=document.getElementById('list');c.innerHTML='';ARTICLES.forEach(function(art){var s=art.slug;var d=document.createElement('div');d.className='card';d.id='c-'+s;d.innerHTML='<div class="ct"><a href="https://www.rialo.io/posts/'+s+'" target="_blank">'+art.title+'</a></div><div class="cs" id="s-'+s+'">Checking...</div><div class="br"><button class="b bg" id="g-'+s+'">Generate</button><button class="b br2" id="d-'+s+'">Delete</button><button class="b bd" id="p-'+s+'" style="display:none">Preview</button><button class="b bd" id="dl-'+s+'" style="display:none">Download</button></div><div class="lg" id="l-'+s+'"></div><div id="aw-'+s+'"></div>';c.appendChild(d);document.getElementById('g-'+s).onclick=function(){gen(s)};document.getElementById('d-'+s).onclick=function(){del(s)};document.getElementById('p-'+s).onclick=function(){play(s)};document.getElementById('dl-'+s).onclick=function(){window.location.href=API+'/api/narration/'+s+'/download'};chk(s)})}
+function chk(s){var e=document.getElementById('s-'+s),p=document.getElementById('p-'+s),dl=document.getElementById('dl-'+s);fetch(API+'/api/narration/'+s).then(function(r){return r.json()}).then(function(d){if(d.exists){e.textContent='Cached';e.className='cs ok';p.style.display='inline-block';p.dataset.u=d.url;dl.style.display='inline-block'}else{e.textContent='No audio';e.className='cs no';p.style.display='none';dl.style.display='none'}}).catch(function(){e.textContent='Error checking';e.className='cs er'})}
+function gen(s){var b=document.getElementById('g-'+s),l=document.getElementById('l-'+s),e=document.getElementById('s-'+s);b.disabled=true;b.textContent='Generating...';e.textContent='Generating (may take 1-2 min)...';e.className='cs ld';l.textContent='';fetch(API+'/api/narration/'+s+'/auto-generate').then(function(r){return r.json()}).then(function(d){if(d.error){e.textContent='Error: '+d.error;e.className='cs er'}else{l.textContent=(d.textLength||'?')+' chars processed';chk(s)}}).catch(function(err){e.textContent='Error: '+err.message;e.className='cs er'}).finally(function(){b.disabled=false;b.textContent='Generate'})}
+function del(s){if(!confirm('Delete audio for "'+s+'"?'))return;var b=document.getElementById('d-'+s),l=document.getElementById('l-'+s);b.disabled=true;fetch(API+'/api/narration/'+s+'/delete').then(function(r){return r.json()}).then(function(d){l.textContent='Deleted '+(d.deleted||0)+' file(s)';chk(s)}).catch(function(err){l.textContent='Error: '+err.message}).finally(function(){b.disabled=false})}
+function play(s){var b=document.getElementById('p-'+s),w=document.getElementById('aw-'+s);if(w.querySelector('audio')){w.innerHTML='';b.textContent='Preview';return}var a=document.createElement('audio');a.controls=true;a.src=b.dataset.u;w.appendChild(a);a.play();b.textContent='Hide'}
+function genAll(){ARTICLES.forEach(function(art){var e=document.getElementById('s-'+art.slug);if(e&&(e.className==='cs no'||e.className==='cs er'))gen(art.slug)})}
+function refreshAll(){ARTICLES.forEach(function(art){chk(art.slug)})}
+render();
+</script>
+</body>
+</html>

@@ -38,7 +38,11 @@ app.use('/audio', express.static(AUDIO_DIR, {
 }));
 
 app.use((req, res, next) => {
-  res.set('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGIN || '*');
+  const allowed = (process.env.ALLOWED_ORIGINS || process.env.ALLOWED_ORIGIN || '*').split(',');
+  const origin = req.headers.origin;
+  if (allowed.includes('*') || allowed.includes(origin)) {
+    res.set('Access-Control-Allow-Origin', origin || '*');
+  }
   res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.set('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
