@@ -159,10 +159,10 @@ function render(){
     var row=document.createElement('div');row.className='article-row';row.id='row-'+s;
     row.innerHTML='<div class="article-info"><div class="article-title"><a href="https://www.rialo.io/posts/'+s+'" target="_blank">'+art.title+'</a></div><div class="article-slug">'+s+'</div><div class="article-log" id="l-'+s+'"></div><div class="article-audio" id="aw-'+s+'"></div></div><div class="article-status" id="sw-'+s+'"><span class="status-badge status-none" id="s-'+s+'">...</span></div><div class="article-actions"><button class="btn btn-primary btn-sm" id="g-'+s+'">Generate</button><button class="btn btn-ghost btn-sm" id="p-'+s+'" style="display:none">Preview</button><button class="btn btn-ghost btn-sm" id="dl-'+s+'" style="display:none">Download</button><button class="btn btn-danger btn-sm" id="d-'+s+'">Delete</button></div>';
     wrap.appendChild(row);
-    document.getElementById('g-'+s).onclick=function(){gen(s)};
-    document.getElementById('d-'+s).onclick=function(){del(s)};
-    document.getElementById('p-'+s).onclick=function(){play(s)};
-    document.getElementById('dl-'+s).onclick=function(){window.location.href=API+'/api/narration/'+s+'/download'};
+    row.querySelector('#g-'+s).onclick=function(){gen(s)};
+    row.querySelector('#d-'+s).onclick=function(){del(s)};
+    row.querySelector('#p-'+s).onclick=function(){play(s)};
+    row.querySelector('#dl-'+s).onclick=function(){window.location.href=API+'/api/narration/'+s+'/download'};
     chk(s);
   });
   c.appendChild(wrap);
