@@ -213,20 +213,20 @@ async function generateChunkAudio(text) {
 }
 
 async function fixMp3Duration(filepath) {
-  console.log('Attempting ffmpeg duration fix on:', filepath);
   const tempPath = filepath + '.tmp.mp3';
   try {
-    await execFileAsync('ffmpeg', [
-      '-i', filepath,
-      '-c', 'copy',
-      '-y',
-      tempPath
-    ]);
-    await fs.rename(tempPath, filepath);
-    console.log('Fixed MP3 duration header:', filepath);
+    await execFileAsync('ffmpeg', ['-i', filepath, '-acodec', 'libmp3lame', '-b:a', '192k', '-y', tempPath]);
+    const stat = await fs.stat(tempPath);
+    if (stat.size > 0) {
+      await fs.rename(tempPath, filepath);
+      console.log('Re-encoded MP3 for correct duration:', filepath);
+    } else {
+      await fs.unlink(tempPath).catch(() => {});
+      console.log('Re-encode produced empty file, keeping original');
+    }
   } catch (err) {
-    console.error('ffmpeg fix failed:', err.message, '- ffmpeg may not be installed');
     await fs.unlink(tempPath).catch(() => {});
+    console.error('MP3 re-encode failed (non-fatal):', err.message);
   }
 }
 
