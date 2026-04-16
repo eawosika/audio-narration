@@ -12,8 +12,7 @@ app.use(express.json({ limit: '1mb' }));
 
 const ELEVEN_API_KEY = process.env.ELEVENLABS_API_KEY;
 const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'pNInz6obpgDQGcFmaJgB';
-// Flash v2.5: half the credits (0.5 per char vs 1), faster generation, multilingual
-const MODEL_ID = 'eleven_flash_v2_5';
+const MODEL_ID = 'eleven_multilingual_v2';
 const MAX_CHUNK_CHARS = 4500;
 
 const AUDIO_DIR = process.env.AUDIO_DIR || './audio';
