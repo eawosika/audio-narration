@@ -12,7 +12,7 @@ app.use(express.json({ limit: '1mb' }));
 
 const ELEVEN_API_KEY = process.env.ELEVENLABS_API_KEY;
 const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'pNInz6obpgDQGcFmaJgB';
-const MODEL_ID = 'eleven_multilingual_v2';
+const MODEL_ID = 'eleven_v3';
 const MAX_CHUNK_CHARS = 4500;
 
 const AUDIO_DIR = process.env.AUDIO_DIR || './audio';
