@@ -133,14 +133,29 @@ var VOICES=[
 {id:'l30f87tf05uxyknGdDw6',label:'Allistair',desc:'Clear, neutral, informative',url:'https://elevenlabs.io/app/voice-library?voiceId=l30f87tf05uxyknGdDw6'},
 {id:'RWLFUuahyl6QdlLs8Al5',label:'Bob',desc:'Deep and insightful',url:'https://elevenlabs.io/app/voice-library?voiceId=RWLFUuahyl6QdlLs8Al5'}
 ];
-var ARTICLES=[
-{slug:'bringing-private-credit-onchain',title:'How to Bring Private Credit Onchain'},
-{slug:'rethinking-protocol-upgrades-with-gauss',title:'Rethinking Protocol Upgrades with Gauss'},
-{slug:'understanding-distributed-key-generation',title:'Building Blocks of Threshold Cryptography: Distributed Key Generation'},
-{slug:'a-practical-guide-to-consistency-in-distributed-systems',title:'A Practical Guide to Consistency in Distributed Systems'},
-{slug:'supermodularity-and-system-welfare',title:'Supermodularity and System Welfare'}
-];
+var ARTICLES=[];
 var statusMap={};
+
+function loadArticles(){
+  fetch(API+'/api/articles')
+  .then(function(r){return r.json()})
+  .then(function(data){
+    if(data.articles&&data.articles.length){
+      ARTICLES=data.articles;
+      render();
+    }
+  })
+  .catch(function(){
+    ARTICLES=[
+      {slug:'bringing-private-credit-onchain',title:'How to Bring Private Credit Onchain'},
+      {slug:'rethinking-protocol-upgrades-with-gauss',title:'Rethinking Protocol Upgrades with Gauss'},
+      {slug:'understanding-distributed-key-generation',title:'Building Blocks of Threshold Cryptography: Distributed Key Generation'},
+      {slug:'a-practical-guide-to-consistency-in-distributed-systems',title:'A Practical Guide to Consistency in Distributed Systems'},
+      {slug:'supermodularity-and-system-welfare',title:'Supermodularity and System Welfare'}
+    ];
+    render();
+  });
+}
 
 function doAuth(){
   var pw=document.getElementById('auth-pw').value;var remember=document.getElementById('auth-remember').checked;var err=document.getElementById('auth-error');err.textContent='';
@@ -150,7 +165,7 @@ function doAuth(){
   .catch(function(e){err.textContent=e.message});
 }
 function logout(){TOKEN='';localStorage.removeItem('np_admin_token');sessionStorage.removeItem('np_admin_token');document.getElementById('app').style.display='none';document.getElementById('auth-screen').style.display='flex'}
-function showApp(){document.getElementById('auth-screen').style.display='none';document.getElementById('app').style.display='block';render()}
+function showApp(){document.getElementById('auth-screen').style.display='none';document.getElementById('app').style.display='block';loadArticles()}
 function authHeaders(){return{'x-admin-token':TOKEN,'Content-Type':'application/json'}}
 
 (function(){
@@ -174,7 +189,7 @@ function render(){
     var row=document.createElement('div');row.className='article-row';
     var head=document.createElement('div');head.className='article-head';
     var info=document.createElement('div');info.className='article-info';
-    info.innerHTML='<div class="article-title"><a href="https://www.rialo.io/posts/'+s+'" target="_blank">'+art.title+'</a></div><div class="article-slug">'+s+'</div>';
+    info.innerHTML='<div class="article-title"><a href="https://www.rialo.io/posts/'+s+'" target="_blank">'+art.title+' <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;opacity:0.35"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div>';
     var statusWrap=document.createElement('div');statusWrap.className='article-status';
     var badge=document.createElement('span');badge.className='status-badge status-none';badge.textContent='...';
     statusWrap.appendChild(badge);

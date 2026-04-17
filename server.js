@@ -725,6 +725,51 @@ app.post('/api/narration/:postId/delete-version', adminAuth, async (req, res) =>
   }
 });
 
+app.get('/api/articles', async (req, res) => {
+  try {
+    const articles = [];
+    const seen = new Set();
+
+    for (const page of ['/blog', '/docs']) {
+      const response = await fetch(`${RIALO_BASE}${page}`);
+      if (!response.ok) continue;
+      const html = await response.text();
+
+      const linkMatches = html.matchAll(/href="https:\/\/www\.rialo\.io\/posts\/([^"]+)"/g);
+      for (const m of linkMatches) {
+        const slug = m[1].replace(/\/$/, '');
+        if (seen.has(slug)) continue;
+        seen.add(slug);
+
+        let title = '';
+        const titlePattern = new RegExp('href="https://www\\.rialo\\.io/posts/' + slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '"[^>]*>[\\s\\S]*?###\\s*([^<\\n]+)', 'i');
+        const titleMatch = html.match(titlePattern);
+        if (titleMatch) {
+          title = titleMatch[1].trim();
+        }
+
+        if (!title) {
+          const altPattern = new RegExp('<h[23][^>]*>([^<]+)</h[23]>[\\s\\S]{0,500}' + slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+          const altMatch = html.match(altPattern);
+          if (altMatch) title = altMatch[1].trim();
+        }
+
+        if (!title) {
+          title = slug.replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+        }
+
+        articles.push({ slug, title });
+      }
+    }
+
+    articles.sort((a, b) => a.title.localeCompare(b.title));
+    res.json({ articles });
+  } catch (err) {
+    console.error('Fetch articles error:', err);
+    res.status(500).json({ error: 'Failed to fetch articles' });
+  }
+});
+
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 const PORT = process.env.PORT || 3001;
