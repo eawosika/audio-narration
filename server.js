@@ -18,6 +18,19 @@ const MAX_CHUNK_CHARS = 4500;
 const AUDIO_DIR = process.env.AUDIO_DIR || './audio';
 const CHUNKS_DIR = path.join(AUDIO_DIR, '.chunks');
 
+const ACTIVE_MAP_PATH = path.join(AUDIO_DIR, '.active.json');
+
+async function loadActiveMap() {
+  try {
+    const data = await fs.readFile(ACTIVE_MAP_PATH, 'utf8');
+    return JSON.parse(data);
+  } catch { return {}; }
+}
+
+async function saveActiveMap(map) {
+  await fs.writeFile(ACTIVE_MAP_PATH, JSON.stringify(map, null, 2));
+}
+
 const BASE_URL = process.env.RAILWAY_PUBLIC_DOMAIN
   ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
   : `http://localhost:${process.env.PORT || 3001}`;
@@ -43,9 +56,26 @@ app.use((req, res, next) => {
     res.set('Access-Control-Allow-Origin', origin || '*');
   }
   res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, x-admin-token');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
+});
+
+function adminAuth(req, res, next) {
+  const password = process.env.ADMIN_PASSWORD;
+  if (!password) return next();
+  const token = req.headers['x-admin-token'] || req.query.token;
+  if (token === password) return next();
+  res.status(401).json({ error: 'Unauthorized' });
+}
+
+app.post('/api/admin/auth', (req, res) => {
+  const { password } = req.body;
+  if (password === process.env.ADMIN_PASSWORD) {
+    res.json({ ok: true });
+  } else {
+    res.status(401).json({ error: 'Wrong password' });
+  }
 });
 
 // ── Helpers ─────────────────────────────────────────────
@@ -191,8 +221,9 @@ function cleanTextForSpeech(text) {
     .trim();
 }
 
-async function generateChunkAudio(text) {
-  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
+async function generateChunkAudio(text, voice) {
+  const useVoice = voice || VOICE_ID;
+  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${useVoice}`, {
     method: 'POST',
     headers: {
       'xi-api-key': ELEVEN_API_KEY,
@@ -417,8 +448,8 @@ async function fetchArticleText(slug) {
   return text.slice(0, 50000);
 }
 
-async function generateAudio(postId, text, metadata = {}) {
-  const hash = hashText(text);
+async function generateAudio(postId, text, metadata = {}, voiceOverride = null) {
+  const hash = hashText(text + (voiceOverride || ''));
   const filename = getFilename(postId, hash);
   const filepath = path.join(AUDIO_DIR, filename);
 
@@ -427,7 +458,8 @@ async function generateAudio(postId, text, metadata = {}) {
   }
 
   const chunks = chunkText(text);
-  console.log(`Generating audio for "${postId}": ${chunks.length} chunk(s), ${text.length} chars`);
+  const voice = voiceOverride || VOICE_ID;
+  console.log(`Generating audio for "${postId}": ${chunks.length} chunk(s), ${text.length} chars, voice: ${voice}`);
 
   const audioBuffers = [];
 
@@ -440,7 +472,7 @@ async function generateAudio(postId, text, metadata = {}) {
       audioBuffers.push(await fs.readFile(chunkFile));
     } else {
       console.log(`  Chunk ${i + 1}/${chunks.length}: generating (${chunks[i].length} chars)`);
-      const buffer = await generateChunkAudio(chunks[i]);
+      const buffer = await generateChunkAudio(chunks[i], voice);
       await fs.writeFile(chunkFile, buffer);
       audioBuffers.push(buffer);
     }
@@ -476,24 +508,20 @@ async function generateAudio(postId, text, metadata = {}) {
 app.get('/api/narration/:postId', async (req, res) => {
   try {
     const { postId } = req.params;
-    const { hash } = req.query;
+    const activeMap = await loadActiveMap();
 
-    if (!hash) {
-      const files = await fs.readdir(AUDIO_DIR);
-      const match = files.find(f => f.startsWith(`${postId}_`) && f.endsWith('.mp3'));
-      if (match) {
-        return res.json({ exists: true, url: `${BASE_URL}/audio/${match}` });
+    if (activeMap[postId]) {
+      const filepath = path.join(AUDIO_DIR, activeMap[postId]);
+      if (await fileExists(filepath)) {
+        return res.json({ exists: true, url: `${BASE_URL}/audio/${activeMap[postId]}` });
       }
-      return res.json({ exists: false });
     }
 
-    const filename = getFilename(postId, hash);
-    const filepath = path.join(AUDIO_DIR, filename);
-
-    if (await fileExists(filepath)) {
-      return res.json({ exists: true, url: `${BASE_URL}/audio/${filename}` });
+    const files = await fs.readdir(AUDIO_DIR);
+    const match = files.find(f => f.startsWith(`${postId}_`) && f.endsWith('.mp3'));
+    if (match) {
+      return res.json({ exists: true, url: `${BASE_URL}/audio/${match}` });
     }
-
     return res.json({ exists: false });
   } catch (err) {
     console.error('GET /api/narration error:', err);
@@ -524,13 +552,14 @@ app.post('/api/narration/:postId/generate', async (req, res) => {
   }
 });
 
-app.get('/api/narration/:postId/auto-generate', async (req, res) => {
+app.get('/api/narration/:postId/auto-generate', adminAuth, async (req, res) => {
   try {
     const { postId } = req.params;
+    const voiceOverride = req.query.voice || null;
 
     const files = await fs.readdir(AUDIO_DIR);
     const existing = files.find(f => f.startsWith(`${postId}_`) && f.endsWith('.mp3'));
-    if (existing) {
+    if (existing && !voiceOverride) {
       return res.json({
         status: 'already_cached',
         url: `${BASE_URL}/audio/${existing}`,
@@ -538,18 +567,19 @@ app.get('/api/narration/:postId/auto-generate', async (req, res) => {
       });
     }
 
-    console.log(`Auto-generating audio for: ${postId}`);
+    console.log(`Auto-generating audio for: ${postId}` + (voiceOverride ? ` (voice: ${voiceOverride})` : ''));
     const text = await fetchArticleText(postId);
     const metadata = await fetchArticleMetadata(postId);
     console.log(`Extracted ${text.length} chars, title: "${metadata.title}"`);
 
-    const result = await generateAudio(postId, text, metadata);
+    const result = await generateAudio(postId, text, metadata, voiceOverride);
 
     res.json({
       status: result.cached ? 'already_cached' : 'generated',
       url: result.url,
       slug: postId,
-      textLength: text.length
+      textLength: text.length,
+      voice: voiceOverride || VOICE_ID
     });
   } catch (err) {
     console.error('Auto-generate error:', err);
@@ -578,7 +608,7 @@ app.get('/api/narration/:postId/download', async (req, res) => {
   }
 });
 
-app.get('/api/narration/:postId/delete', async (req, res) => {
+app.get('/api/narration/:postId/delete', adminAuth, async (req, res) => {
   try {
     const { postId } = req.params;
     const files = await fs.readdir(AUDIO_DIR);
@@ -618,6 +648,80 @@ app.post('/api/narration/webhook', async (req, res) => {
   } catch (err) {
     console.error('Webhook error:', err);
     res.status(500).json({ error: 'Failed to generate narration' });
+  }
+});
+
+app.get('/api/narration/:postId/versions', async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const files = await fs.readdir(AUDIO_DIR);
+    const matches = files.filter(f => f.startsWith(`${postId}_`) && f.endsWith('.mp3'));
+    const activeMap = await loadActiveMap();
+    const activeFile = activeMap[postId] || null;
+
+    const versions = await Promise.all(matches.map(async (filename) => {
+      const filepath = path.join(AUDIO_DIR, filename);
+      const stat = await fs.stat(filepath);
+      return {
+        filename,
+        url: `${BASE_URL}/audio/${filename}`,
+        size: stat.size,
+        created: stat.birthtime || stat.mtime,
+        active: filename === activeFile
+      };
+    }));
+
+    versions.sort((a, b) => new Date(b.created) - new Date(a.created));
+    res.json({ versions, activeFile });
+  } catch (err) {
+    console.error('Versions error:', err);
+    res.status(500).json({ error: 'Failed to list versions' });
+  }
+});
+
+app.post('/api/narration/:postId/set-active', adminAuth, async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const { filename } = req.body;
+    const filepath = path.join(AUDIO_DIR, filename);
+
+    if (!await fileExists(filepath)) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    const activeMap = await loadActiveMap();
+    activeMap[postId] = filename;
+    await saveActiveMap(activeMap);
+
+    res.json({ ok: true, active: filename });
+  } catch (err) {
+    console.error('Set active error:', err);
+    res.status(500).json({ error: 'Failed to set active version' });
+  }
+});
+
+app.post('/api/narration/:postId/delete-version', adminAuth, async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const { filename } = req.body;
+    const filepath = path.join(AUDIO_DIR, filename);
+
+    if (!await fileExists(filepath)) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    await fs.unlink(filepath);
+
+    const activeMap = await loadActiveMap();
+    if (activeMap[postId] === filename) {
+      delete activeMap[postId];
+      await saveActiveMap(activeMap);
+    }
+
+    res.json({ ok: true, deleted: filename });
+  } catch (err) {
+    console.error('Delete version error:', err);
+    res.status(500).json({ error: 'Failed to delete version' });
   }
 });
 
