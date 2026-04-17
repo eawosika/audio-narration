@@ -137,24 +137,26 @@ var ARTICLES=[];
 var statusMap={};
 
 function loadArticles(){
+  ARTICLES=[
+    {slug:'bringing-private-credit-onchain',title:'How to Bring Private Credit Onchain'},
+    {slug:'rethinking-protocol-upgrades-with-gauss',title:'Rethinking Protocol Upgrades with Gauss'},
+    {slug:'understanding-distributed-key-generation',title:'Building Blocks of Threshold Cryptography: Distributed Key Generation'},
+    {slug:'a-practical-guide-to-consistency-in-distributed-systems',title:'A Practical Guide to Consistency in Distributed Systems'},
+    {slug:'supermodularity-and-system-welfare',title:'Supermodularity and System Welfare'}
+  ];
+  render();
   fetch(API+'/api/articles')
   .then(function(r){return r.json()})
   .then(function(data){
     if(data.articles&&data.articles.length){
-      ARTICLES=data.articles;
+      var slugs=ARTICLES.map(function(a){return a.slug});
+      data.articles.forEach(function(a){
+        if(slugs.indexOf(a.slug)===-1){ARTICLES.push(a);slugs.push(a.slug)}
+      });
       render();
     }
   })
-  .catch(function(){
-    ARTICLES=[
-      {slug:'bringing-private-credit-onchain',title:'How to Bring Private Credit Onchain'},
-      {slug:'rethinking-protocol-upgrades-with-gauss',title:'Rethinking Protocol Upgrades with Gauss'},
-      {slug:'understanding-distributed-key-generation',title:'Building Blocks of Threshold Cryptography: Distributed Key Generation'},
-      {slug:'a-practical-guide-to-consistency-in-distributed-systems',title:'A Practical Guide to Consistency in Distributed Systems'},
-      {slug:'supermodularity-and-system-welfare',title:'Supermodularity and System Welfare'}
-    ];
-    render();
-  });
+  .catch(function(){});
 }
 
 function doAuth(){
