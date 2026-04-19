@@ -298,7 +298,7 @@ function renderGen(slug){
 
   var title=document.createElement('div');title.className='gen-title';title.textContent=art.title;
   var sub=document.createElement('div');sub.className='gen-subtitle';
-  sub.innerHTML=slug+' &middot; <a href="https://www.rialo.io/posts/'+slug+'" target="_blank" style="color:rgba(169,221,211,0.5);text-decoration:none">View article</a>';
+  sub.innerHTML='<a href="https://www.rialo.io/posts/'+slug+'" target="_blank" style="color:rgba(169,221,211,0.5);text-decoration:none">View article</a>';
   el.appendChild(title);el.appendChild(sub);
 
   // Voice section
