@@ -19,6 +19,7 @@ const AUDIO_DIR = process.env.AUDIO_DIR || './audio';
 const CHUNKS_DIR = path.join(AUDIO_DIR, '.chunks');
 
 const ACTIVE_MAP_PATH = path.join(AUDIO_DIR, '.active.json');
+const SPOTIFY_MAP_PATH = path.join(AUDIO_DIR, '.spotify.json');
 
 async function loadActiveMap() {
   try {
@@ -29,6 +30,17 @@ async function loadActiveMap() {
 
 async function saveActiveMap(map) {
   await fs.writeFile(ACTIVE_MAP_PATH, JSON.stringify(map, null, 2));
+}
+
+async function loadSpotifyMap() {
+  try {
+    const data = await fs.readFile(SPOTIFY_MAP_PATH, 'utf8');
+    return JSON.parse(data);
+  } catch { return {}; }
+}
+
+async function saveSpotifyMap(map) {
+  await fs.writeFile(SPOTIFY_MAP_PATH, JSON.stringify(map, null, 2));
 }
 
 const BASE_URL = process.env.RAILWAY_PUBLIC_DOMAIN
@@ -792,6 +804,97 @@ app.get('/api/articles', async (req, res) => {
     res.json({ articles, debug });
   } catch (err) {
     console.error('Articles error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/spotify/:postId', async (req, res) => {
+  try {
+    const map = await loadSpotifyMap();
+    const url = map[req.params.postId] || null;
+    res.json({ url });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/spotify/:postId', adminAuth, async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const { url } = req.body;
+    const map = await loadSpotifyMap();
+    if (url) {
+      map[postId] = url;
+    } else {
+      delete map[postId];
+    }
+    await saveSpotifyMap(map);
+    res.json({ ok: true, url: url || null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/spotify', async (req, res) => {
+  try {
+    const map = await loadSpotifyMap();
+    res.json({ spotify: map });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/generate-description', adminAuth, async (req, res) => {
+  try {
+    const { slug } = req.body;
+    if (!slug) return res.status(400).json({ error: 'Missing slug' });
+
+    const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+    if (!ANTHROPIC_API_KEY) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not set' });
+
+    const metadata = await fetchArticleMetadata(slug);
+    if (!metadata.title) return res.status(404).json({ error: 'Could not fetch article metadata' });
+
+    const prompt = `Write a Spotify podcast episode description for this article.
+
+Title: ${metadata.title}
+Summary: ${metadata.summary || '(not available)'}
+Article URL: ${RIALO_BASE}/posts/${slug}
+
+Rules:
+- Under 200 words
+- Open with the core problem or insight, not "In this episode"
+- Write for someone scanning a podcast app, not reading a blog
+- Second paragraph gives 2-3 specific topics covered
+- Close with a one-sentence CTA pointing to the article
+- Tone: serious, precise, editorial
+- No em dashes
+- No hashtags`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      return res.status(500).json({ error: `Anthropic API error: ${err}` });
+    }
+
+    const data = await response.json();
+    const text = data.content?.[0]?.text || '';
+    res.json({ description: text });
+  } catch (err) {
+    console.error('Generate description error:', err);
     res.status(500).json({ error: err.message });
   }
 });
