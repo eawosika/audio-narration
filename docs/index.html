@@ -8,56 +8,8 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#f0eeea;min-height:100vh}
 .shell{max-width:760px;margin:0 auto;padding:48px 24px 64px}
-.header{display:flex;align-items:center;justify-content:space-between;padding-bottom:20px;border-bottom:1px solid rgba(169,221,211,0.1);margin-bottom:32px}
-.header-left{display:flex;align-items:baseline;gap:10px}
-.header h1{font-size:18px;font-weight:600;letter-spacing:-0.01em}
-.header .tag{font-size:11px;color:#a9ddd3;background:rgba(169,221,211,0.08);border:1px solid rgba(169,221,211,0.15);padding:2px 8px;border-radius:4px}
-.stats{display:flex;gap:24px;margin-bottom:32px}
-.stat{display:flex;flex-direction:column;gap:2px}
-.stat-val{font-size:22px;font-weight:600}
-.stat-label{font-size:12px;color:rgba(240,238,234,0.35)}
-.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap}
-.toolbar-left,.toolbar-right{display:flex;gap:8px}
-.btn{padding:7px 14px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;transition:all 0.15s;font-family:inherit;border:1px solid transparent;line-height:1.4}
-.btn-primary{background:rgba(169,221,211,0.08);color:#a9ddd3;border-color:rgba(169,221,211,0.2)}
-.btn-primary:hover{background:rgba(169,221,211,0.15)}
-.btn-ghost{background:transparent;color:rgba(240,238,234,0.5);border-color:rgba(240,238,234,0.08)}
-.btn-ghost:hover{background:rgba(240,238,234,0.04);color:rgba(240,238,234,0.7)}
-.btn-danger{background:transparent;color:rgba(240,100,100,0.7);border-color:rgba(240,90,90,0.15)}
-.btn-danger:hover{background:rgba(240,90,90,0.06)}
-.btn:disabled{opacity:0.25;cursor:default;pointer-events:none}
-.btn-sm{padding:5px 10px;font-size:11px}
-.article-list{display:flex;flex-direction:column;gap:1px;background:rgba(240,238,234,0.04);border:1px solid rgba(169,221,211,0.1);border-radius:8px;overflow:hidden}
-.article-row{background:#0a0a0a;padding:16px 20px;transition:background 0.1s}
-.article-row:hover{background:#0e0e0e}
-.article-head{display:flex;align-items:center;gap:16px;margin-bottom:4px}
-.article-info{flex:1;min-width:0}
-.article-title{font-size:14px;font-weight:500;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.article-title a{color:inherit;text-decoration:none}
-.article-title a:hover{color:#a9ddd3}
-.article-slug{font-size:11px;color:rgba(240,238,234,0.22);font-family:ui-monospace,monospace}
-.article-status{flex-shrink:0}
-.status-badge{display:inline-block;font-size:11px;font-weight:500;padding:3px 10px;border-radius:4px}
-.status-cached{background:rgba(169,221,211,0.08);color:#a9ddd3;border:1px solid rgba(169,221,211,0.15)}
-.status-none{background:rgba(240,238,234,0.03);color:rgba(240,238,234,0.3);border:1px solid rgba(240,238,234,0.06)}
-.status-loading{background:rgba(240,180,50,0.06);color:rgba(240,180,50,0.8);border:1px solid rgba(240,180,50,0.15)}
-.status-error{background:rgba(240,90,90,0.06);color:rgba(240,100,100,0.75);border:1px solid rgba(240,90,90,0.12)}
-.article-controls{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
-.article-log{font-size:11px;color:rgba(240,238,234,0.3);margin-top:6px}
-.versions-panel{margin-top:10px;border-top:1px solid rgba(240,238,234,0.06);padding-top:10px}
-.version-row{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:11px}
-.version-file{color:rgba(240,238,234,0.4);font-family:ui-monospace,monospace;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.version-date{color:rgba(240,238,234,0.25);flex-shrink:0;width:80px}
-.version-active{color:#a9ddd3;font-weight:500;font-size:10px}
-audio{width:100%;height:32px;margin-top:6px;border-radius:6px}
-.add-section{margin-top:24px}
-.add-row{display:flex;gap:8px}
-.add-input{flex:1;padding:10px 14px;border:1px solid rgba(169,221,211,0.12);border-radius:6px;font-size:13px;background:#111;color:#f0eeea;outline:none;font-family:inherit}
-.add-input:focus{border-color:rgba(169,221,211,0.3)}
-.add-input::placeholder{color:rgba(240,238,234,0.18)}
-.footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(169,221,211,0.06);display:flex;justify-content:space-between;align-items:center;font-size:11px;color:rgba(240,238,234,0.18)}
-.footer a{color:rgba(240,238,234,0.3);text-decoration:none}
-.footer a:hover{color:#a9ddd3}
+
+/* Auth */
 .auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
 .auth-box{background:#111;border:1px solid rgba(169,221,211,0.15);border-radius:12px;padding:32px;width:100%;max-width:360px;text-align:center}
 .auth-box h2{font-size:18px;font-weight:600;margin-bottom:6px}
@@ -69,20 +21,130 @@ audio{width:100%;height:32px;margin-top:6px;border-radius:6px}
 .auth-remember{display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(240,238,234,0.4);cursor:pointer}
 .auth-remember input{cursor:pointer}
 .auth-error{font-size:12px;color:rgba(240,100,100,0.8);margin-top:8px;min-height:18px}
-.voice-menu-item{padding:8px 14px;cursor:pointer;transition:background 0.1s;display:flex;align-items:center;justify-content:space-between;gap:8px}
-.voice-menu-item:hover{background:rgba(169,221,211,0.06)}
+
+/* Common */
+.btn{padding:7px 14px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;transition:all 0.15s;font-family:inherit;border:1px solid transparent;line-height:1.4}
+.btn-primary{background:rgba(169,221,211,0.08);color:#a9ddd3;border-color:rgba(169,221,211,0.2)}
+.btn-primary:hover{background:rgba(169,221,211,0.15)}
+.btn-ghost{background:transparent;color:rgba(240,238,234,0.5);border-color:rgba(240,238,234,0.08)}
+.btn-ghost:hover{background:rgba(240,238,234,0.04);color:rgba(240,238,234,0.7)}
+.btn-danger{background:transparent;color:rgba(240,100,100,0.7);border-color:rgba(240,90,90,0.15)}
+.btn-danger:hover{background:rgba(240,90,90,0.08)}
+.btn-stop{background:rgba(240,90,90,0.1);color:rgba(240,100,100,0.9);border-color:rgba(240,90,90,0.3);padding:8px 18px;font-size:13px}
+.btn-stop:hover{background:rgba(240,90,90,0.18)}
+.btn:disabled{opacity:0.25;cursor:default;pointer-events:none}
+.btn-sm{padding:5px 10px;font-size:11px}
+.btn-lg{padding:10px 20px;font-size:14px}
+
+/* Header */
+.header{display:flex;align-items:center;justify-content:space-between;padding-bottom:20px;border-bottom:1px solid rgba(169,221,211,0.1);margin-bottom:32px}
+.header-left{display:flex;align-items:baseline;gap:10px}
+.header h1{font-size:18px;font-weight:600;letter-spacing:-0.01em}
+.header .tag{font-size:11px;color:#a9ddd3;background:rgba(169,221,211,0.08);border:1px solid rgba(169,221,211,0.15);padding:2px 8px;border-radius:4px}
+
+/* Stats */
+.stats{display:flex;gap:24px;margin-bottom:32px}
+.stat{display:flex;flex-direction:column;gap:2px}
+.stat-val{font-size:22px;font-weight:600}
+.stat-label{font-size:12px;color:rgba(240,238,234,0.35)}
+
+/* Toolbar */
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap}
+.toolbar-left,.toolbar-right{display:flex;gap:8px}
+
+/* List view */
+.article-list{display:flex;flex-direction:column;gap:1px;background:rgba(240,238,234,0.04);border:1px solid rgba(169,221,211,0.1);border-radius:8px;overflow:hidden}
+.article-row{background:#0a0a0a;padding:14px 20px;display:flex;align-items:center;gap:16px;transition:background 0.1s;cursor:default}
+.article-row:hover{background:#0e0e0e}
+.article-info{flex:1;min-width:0}
+.article-title{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.article-title a{color:inherit;text-decoration:none}
+.article-title a:hover{color:#a9ddd3}
+.article-status{flex-shrink:0}
+.article-actions{flex-shrink:0;display:flex;gap:6px}
+.status-badge{display:inline-block;font-size:11px;font-weight:500;padding:3px 10px;border-radius:4px}
+.status-cached{background:rgba(169,221,211,0.08);color:#a9ddd3;border:1px solid rgba(169,221,211,0.15)}
+.status-none{background:rgba(240,238,234,0.03);color:rgba(240,238,234,0.3);border:1px solid rgba(240,238,234,0.06)}
+
+/* Add */
+.add-row{display:flex;gap:8px}
+.add-input{flex:1;padding:10px 14px;border:1px solid rgba(169,221,211,0.12);border-radius:6px;font-size:13px;background:#111;color:#f0eeea;outline:none;font-family:inherit}
+.add-input:focus{border-color:rgba(169,221,211,0.3)}
+.add-input::placeholder{color:rgba(240,238,234,0.18)}
+
+/* Generate view */
+.gen-back{display:flex;align-items:center;gap:8px;color:rgba(240,238,234,0.4);font-size:13px;cursor:pointer;margin-bottom:24px;transition:color 0.15s;background:none;border:none;font-family:inherit}
+.gen-back:hover{color:#f0eeea}
+.gen-title{font-size:20px;font-weight:600;margin-bottom:4px;line-height:1.35}
+.gen-subtitle{font-size:13px;color:rgba(240,238,234,0.35);margin-bottom:28px}
+.gen-section{margin-bottom:28px}
+.gen-section-label{font-size:10px;letter-spacing:0.06em;text-transform:uppercase;color:#a9ddd3;margin-bottom:12px}
+
+/* Voice cards */
+.voice-card{background:#111;border:1px solid rgba(169,221,211,0.12);border-radius:8px;padding:16px 20px;margin-bottom:8px;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.voice-card:hover{border-color:rgba(169,221,211,0.25);background:#131313}
+.voice-card.selected{border-color:rgba(169,221,211,0.4);background:rgba(169,221,211,0.04)}
+.voice-card.generating{border-color:rgba(240,180,50,0.3);background:rgba(240,180,50,0.03)}
+.voice-info{flex:1;min-width:0}
+.voice-name{font-size:14px;font-weight:500;margin-bottom:2px}
+.voice-desc{font-size:12px;color:rgba(240,238,234,0.35)}
+.voice-link{font-size:11px;color:rgba(169,221,211,0.5);text-decoration:none;flex-shrink:0;transition:color 0.15s}
+.voice-link:hover{color:#a9ddd3}
+
+/* Progress */
+.gen-progress{margin-top:16px;padding:16px 20px;background:#111;border:1px solid rgba(240,180,50,0.15);border-radius:8px}
+.gen-progress.done{border-color:rgba(169,221,211,0.2)}
+.gen-progress.error{border-color:rgba(240,90,90,0.2)}
+.progress-status{font-size:13px;margin-bottom:10px}
+.progress-bar-wrap{height:4px;background:rgba(240,238,234,0.06);border-radius:2px;overflow:hidden;margin-bottom:10px}
+.progress-bar{height:100%;background:#a9ddd3;border-radius:2px;transition:width 0.3s ease;width:0%}
+.progress-bar.error{background:rgba(240,100,100,0.6)}
+.progress-controls{display:flex;gap:8px;align-items:center}
+.progress-log{font-size:11px;color:rgba(240,238,234,0.3);margin-top:8px}
+
+/* Versions */
+.versions-section{margin-top:28px}
+.version-row{display:flex;align-items:center;gap:8px;padding:10px 16px;background:#111;border:1px solid rgba(240,238,234,0.06);border-radius:6px;margin-bottom:6px;font-size:12px}
+.version-row.active{border-color:rgba(169,221,211,0.2)}
+.version-info{flex:1;min-width:0}
+.version-file{color:rgba(240,238,234,0.4);font-family:ui-monospace,monospace;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.version-meta{font-size:11px;color:rgba(240,238,234,0.25);margin-top:2px}
+.version-active-tag{font-size:10px;color:#a9ddd3;font-weight:500;background:rgba(169,221,211,0.08);padding:2px 6px;border-radius:3px}
+.version-actions{display:flex;gap:4px;flex-shrink:0}
+
+/* Spotify */
+.spotify-section{margin-top:20px;padding:16px 20px;background:#111;border:1px solid rgba(240,238,234,0.06);border-radius:8px}
+.spotify-row{display:flex;gap:8px;align-items:center}
+.spotify-input{flex:1;padding:8px 12px;border:1px solid rgba(169,221,211,0.12);border-radius:6px;font-size:12px;background:#0a0a0a;color:#f0eeea;outline:none;font-family:inherit}
+.spotify-input:focus{border-color:rgba(169,221,211,0.3)}
+.spotify-input::placeholder{color:rgba(240,238,234,0.18)}
+.spotify-saved{font-size:11px;color:#a9ddd3;margin-top:6px}
+
+/* Audio preview */
+audio{width:100%;height:36px;margin-top:8px;border-radius:6px}
+
+/* Footer */
+.footer{margin-top:40px;padding-top:20px;border-top:1px solid rgba(169,221,211,0.06);display:flex;justify-content:space-between;align-items:center;font-size:11px;color:rgba(240,238,234,0.18)}
+.footer a{color:rgba(240,238,234,0.3);text-decoration:none}
+.footer a:hover{color:#a9ddd3}
+
+.hidden{display:none}
+
 @media(max-width:600px){
 .shell{padding:32px 16px 48px}
 .stats{gap:16px}.stat-val{font-size:18px}
-.article-head{flex-wrap:wrap;gap:8px}
-.article-controls{flex-direction:column;align-items:stretch}
+.article-row{flex-wrap:wrap;gap:8px;padding:12px 16px}
+.article-actions{width:100%}
 .toolbar{flex-direction:column;align-items:stretch}
 .toolbar-left,.toolbar-right{justify-content:stretch}
 .toolbar .btn{flex:1;text-align:center}
+.voice-card{flex-direction:column;align-items:stretch;gap:8px}
 }
 </style>
 </head>
 <body>
+
+<!-- Auth -->
 <div id="auth-screen" class="auth-screen">
 <div class="auth-box">
 <h2>Audio Narration</h2>
@@ -93,12 +155,20 @@ audio{width:100%;height:32px;margin-top:6px;border-radius:6px}
 <div class="auth-error" id="auth-error"></div>
 </div>
 </div>
-<div id="app" style="display:none">
+
+<!-- App -->
+<div id="app" class="hidden">
 <div class="shell">
 <div class="header">
 <div class="header-left"><h1>Audio Narration</h1><span class="tag">Rialo</span></div>
+<div style="display:flex;gap:8px;align-items:center">
 <a href="https://www.rialo.io/blog" target="_blank" class="btn btn-ghost btn-sm">View blog</a>
+<button class="btn btn-ghost btn-sm" onclick="logout()" style="border:none">Log out</button>
 </div>
+</div>
+
+<!-- List View -->
+<div id="view-list">
 <div class="stats">
 <div class="stat"><div class="stat-val" id="stat-total">0</div><div class="stat-label">Articles</div></div>
 <div class="stat"><div class="stat-val" id="stat-cached">0</div><div class="stat-label">Audio ready</div></div>
@@ -106,26 +176,36 @@ audio{width:100%;height:32px;margin-top:6px;border-radius:6px}
 </div>
 <div class="toolbar">
 <div class="toolbar-left">
-<button class="btn btn-primary" onclick="genAll()">Generate missing</button>
 <button class="btn btn-ghost" onclick="refreshAll()">Refresh</button>
 </div>
 <div class="toolbar-right">
 <button class="btn btn-ghost btn-sm" onclick="toggleAdd()">+ Add article</button>
 </div>
 </div>
-<div id="add-panel" style="display:none;margin-bottom:16px">
+<div id="add-panel" class="hidden" style="margin-bottom:16px">
 <div class="add-row">
 <input id="ns" class="add-input" placeholder="Post slug or rialo.io URL" onkeydown="if(event.key==='Enter')addS()">
 <button class="btn btn-primary" onclick="addS()">Add</button>
 </div>
 </div>
 <div id="list"></div>
+</div>
+
+<!-- Generate View -->
+<div id="view-gen" class="hidden">
+<button class="gen-back" onclick="showList()">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
+Back to articles
+</button>
+<div id="gen-content"></div>
+</div>
+
 <div class="footer">
 <div><a href="https://www.rialo.io" target="_blank">rialo.io</a> &middot; <a href="https://github.com/eawosika/audio-narration" target="_blank">Source</a></div>
-<button class="btn btn-ghost btn-sm" onclick="logout()" style="border:none;padding:4px 8px">Log out</button>
 </div>
 </div>
 </div>
+
 <script>
 var API='https://audio-narration-production.up.railway.app';
 var TOKEN='';
@@ -135,7 +215,26 @@ var VOICES=[
 ];
 var ARTICLES=[];
 var statusMap={};
+var abortControllers={};
 
+// ── Auth ──
+function doAuth(){
+  var pw=document.getElementById('auth-pw').value;var rem=document.getElementById('auth-remember').checked;var err=document.getElementById('auth-error');err.textContent='';
+  fetch(API+'/api/admin/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})})
+  .then(function(r){if(!r.ok)throw new Error('Wrong password');return r.json()})
+  .then(function(){TOKEN=pw;if(rem)localStorage.setItem('np_admin_token',pw);else sessionStorage.setItem('np_admin_token',pw);showApp()})
+  .catch(function(e){err.textContent=e.message});
+}
+function logout(){TOKEN='';localStorage.removeItem('np_admin_token');sessionStorage.removeItem('np_admin_token');document.getElementById('app').classList.add('hidden');document.getElementById('auth-screen').style.display='flex'}
+function showApp(){document.getElementById('auth-screen').style.display='none';document.getElementById('app').classList.remove('hidden');loadArticles()}
+function authHeaders(){return{'x-admin-token':TOKEN,'Content-Type':'application/json'}}
+(function(){var s=localStorage.getItem('np_admin_token')||sessionStorage.getItem('np_admin_token');if(s){fetch(API+'/api/admin/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:s})}).then(function(r){if(r.ok){TOKEN=s;showApp()}}).catch(function(){});}})();
+
+// ── Navigation ──
+function showList(){document.getElementById('view-list').classList.remove('hidden');document.getElementById('view-gen').classList.add('hidden');renderList()}
+function showGen(slug){document.getElementById('view-list').classList.add('hidden');document.getElementById('view-gen').classList.remove('hidden');renderGen(slug)}
+
+// ── Articles ──
 function loadArticles(){
   ARTICLES=[
     {slug:'bringing-private-credit-onchain',title:'How to Bring Private Credit Onchain'},
@@ -144,145 +243,270 @@ function loadArticles(){
     {slug:'a-practical-guide-to-consistency-in-distributed-systems',title:'A Practical Guide to Consistency in Distributed Systems'},
     {slug:'supermodularity-and-system-welfare',title:'Supermodularity and System Welfare'}
   ];
-  render();
-  fetch(API+'/api/articles')
-  .then(function(r){return r.json()})
-  .then(function(data){
+  renderList();
+  fetch(API+'/api/articles').then(function(r){return r.json()}).then(function(data){
     if(data.articles&&data.articles.length){
       var slugs=ARTICLES.map(function(a){return a.slug});
-      data.articles.forEach(function(a){
-        if(slugs.indexOf(a.slug)===-1){ARTICLES.push(a);slugs.push(a.slug)}
-      });
-      render();
+      data.articles.forEach(function(a){if(slugs.indexOf(a.slug)===-1){ARTICLES.push(a);slugs.push(a.slug)}});
+      renderList();
     }
-  })
-  .catch(function(){});
+  }).catch(function(){});
 }
 
-function doAuth(){
-  var pw=document.getElementById('auth-pw').value;var remember=document.getElementById('auth-remember').checked;var err=document.getElementById('auth-error');err.textContent='';
-  fetch(API+'/api/admin/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})})
-  .then(function(r){if(!r.ok)throw new Error('Wrong password');return r.json()})
-  .then(function(){TOKEN=pw;if(remember)localStorage.setItem('np_admin_token',pw);else sessionStorage.setItem('np_admin_token',pw);showApp()})
-  .catch(function(e){err.textContent=e.message});
-}
-function logout(){TOKEN='';localStorage.removeItem('np_admin_token');sessionStorage.removeItem('np_admin_token');document.getElementById('app').style.display='none';document.getElementById('auth-screen').style.display='flex'}
-function showApp(){document.getElementById('auth-screen').style.display='none';document.getElementById('app').style.display='block';loadArticles()}
-function authHeaders(){return{'x-admin-token':TOKEN,'Content-Type':'application/json'}}
+function toggleAdd(){var p=document.getElementById('add-panel');p.classList.toggle('hidden');if(!p.classList.contains('hidden'))document.getElementById('ns').focus()}
+function addS(){var i=document.getElementById('ns'),s=i.value.trim().replace(/^https?:\/\/.*\/posts\//,'').replace(/\/$/,'');if(!s)return;if(!ARTICLES.some(function(a){return a.slug===s})){ARTICLES.push({slug:s,title:s.replace(/-/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase()})});renderList()}i.value='';document.getElementById('add-panel').classList.add('hidden')}
 
-(function(){
-  var saved=localStorage.getItem('np_admin_token')||sessionStorage.getItem('np_admin_token');
-  if(saved){fetch(API+'/api/admin/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:saved})}).then(function(r){if(r.ok){TOKEN=saved;showApp()}}).catch(function(){});}
-})();
-
-function toggleAdd(){var p=document.getElementById('add-panel');p.style.display=p.style.display==='none'?'block':'none';if(p.style.display==='block')document.getElementById('ns').focus()}
-function slugToTitle(s){for(var i=0;i<ARTICLES.length;i++){if(ARTICLES[i].slug===s)return ARTICLES[i].title}return s.replace(/-/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase()})}
-function addS(){var i=document.getElementById('ns'),s=i.value.trim().replace(/^https?:\/\/.*\/posts\//,'').replace(/\/$/,'');if(!s)return;if(!ARTICLES.some(function(a){return a.slug===s})){ARTICLES.push({slug:s,title:slugToTitle(s)});render()}i.value='';document.getElementById('add-panel').style.display='none'}
 function updateStats(){var t=ARTICLES.length,c=0;ARTICLES.forEach(function(a){if(statusMap[a.slug]==='ok')c++});document.getElementById('stat-total').textContent=t;document.getElementById('stat-cached').textContent=c;document.getElementById('stat-missing').textContent=t-c}
-function fmtSize(b){if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(1)+'KB';return(b/1048576).toFixed(1)+'MB'}
-function fmtDate(d){var dt=new Date(d);return dt.toLocaleDateString('en-US',{month:'short',day:'numeric'})}
+function fmtSize(b){if(b<1048576)return(b/1024).toFixed(0)+'KB';return(b/1048576).toFixed(1)+'MB'}
+function fmtDate(d){return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}
 
-function render(){
+// ── List View ──
+function renderList(){
   var c=document.getElementById('list');c.innerHTML='';
-  if(!ARTICLES.length){c.innerHTML='<div style="text-align:center;padding:40px;color:rgba(240,238,234,0.25);font-size:13px">No articles yet.</div>';updateStats();return}
+  if(!ARTICLES.length){c.innerHTML='<div style="text-align:center;padding:40px;color:rgba(240,238,234,0.25);font-size:13px">No articles found.</div>';updateStats();return}
   var wrap=document.createElement('div');wrap.className='article-list';
   ARTICLES.forEach(function(art){
     var s=art.slug;
     var row=document.createElement('div');row.className='article-row';
-    var head=document.createElement('div');head.className='article-head';
     var info=document.createElement('div');info.className='article-info';
-    info.innerHTML='<div class="article-title"><a href="https://www.rialo.io/posts/'+s+'" target="_blank">'+art.title+' <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;opacity:0.35"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div>';
+    info.innerHTML='<div class="article-title"><a href="https://www.rialo.io/posts/'+s+'" target="_blank" onclick="event.stopPropagation()">'+art.title+' <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;opacity:0.3"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div>';
     var statusWrap=document.createElement('div');statusWrap.className='article-status';
     var badge=document.createElement('span');badge.className='status-badge status-none';badge.textContent='...';
     statusWrap.appendChild(badge);
-    head.appendChild(info);head.appendChild(statusWrap);
-
-    var controls=document.createElement('div');controls.className='article-controls';
-    var voiceWrap=document.createElement('div');voiceWrap.style.cssText='position:relative;display:inline-block';
-    var voiceBtn=document.createElement('button');voiceBtn.className='btn btn-ghost btn-sm';voiceBtn.style.cssText='display:flex;align-items:center;gap:6px';
-    voiceBtn.innerHTML=VOICES[0].label+' <span style="opacity:0.4;font-size:10px">&#9662;</span>';
-    var selectedVoice={id:VOICES[0].id};
-    var voiceMenu=document.createElement('div');voiceMenu.style.cssText='display:none;position:absolute;top:calc(100% + 4px);left:0;background:#131313;border:1px solid rgba(169,221,211,0.15);border-radius:8px;padding:6px 0;z-index:100;min-width:260px;box-shadow:0 8px 24px rgba(0,0,0,0.3)';
-    VOICES.forEach(function(v){
-      var item=document.createElement('div');item.className='voice-menu-item';
-      var left=document.createElement('div');
-      left.innerHTML='<div style="font-size:12px;font-weight:500;color:#f0eeea">'+v.label+'</div><div style="font-size:10px;color:rgba(240,238,234,0.35);margin-top:1px">'+v.desc+'</div>';
-      var link=document.createElement('a');link.href=v.url;link.target='_blank';link.rel='noopener';
-      link.style.cssText='font-size:10px;color:rgba(169,221,211,0.5);text-decoration:none;flex-shrink:0';
-      link.textContent='Preview';link.title='Listen on ElevenLabs';
-      link.onmouseenter=function(){link.style.color='#a9ddd3'};link.onmouseleave=function(){link.style.color='rgba(169,221,211,0.5)'};
-      link.onclick=function(e){e.stopPropagation()};
-      item.appendChild(left);item.appendChild(link);
-      item.onclick=function(){selectedVoice.id=v.id;voiceBtn.innerHTML=v.label+' <span style="opacity:0.4;font-size:10px">&#9662;</span>';voiceMenu.style.display='none'};
-      voiceMenu.appendChild(item);
-    });
-    voiceBtn.onclick=function(e){e.stopPropagation();voiceMenu.style.display=voiceMenu.style.display==='none'?'block':'none'};
-    document.addEventListener('click',function(){voiceMenu.style.display='none'});
-    voiceWrap.appendChild(voiceBtn);voiceWrap.appendChild(voiceMenu);
-
+    var actions=document.createElement('div');actions.className='article-actions';
     var genBtn=document.createElement('button');genBtn.className='btn btn-primary btn-sm';genBtn.textContent='Generate';
-    var versionsBtn=document.createElement('button');versionsBtn.className='btn btn-ghost btn-sm';versionsBtn.textContent='Versions';versionsBtn.style.display='none';
-    controls.appendChild(voiceWrap);controls.appendChild(genBtn);controls.appendChild(versionsBtn);
-
-    var logEl=document.createElement('div');logEl.className='article-log';
-    var versionsPanel=document.createElement('div');versionsPanel.className='versions-panel';versionsPanel.style.display='none';
-    row.appendChild(head);row.appendChild(controls);row.appendChild(logEl);row.appendChild(versionsPanel);
+    genBtn.onclick=function(e){e.stopPropagation();showGen(s)};
+    actions.appendChild(genBtn);
+    row.appendChild(info);row.appendChild(statusWrap);row.appendChild(actions);
+    row.onclick=function(){showGen(s)};
     wrap.appendChild(row);
-
-    genBtn.onclick=function(){
-      genBtn.disabled=true;genBtn.textContent='Working...';badge.textContent='Generating';badge.className='status-badge status-loading';logEl.textContent='';
-      var voiceParam='?token='+encodeURIComponent(TOKEN)+(selectedVoice.id?'&voice='+encodeURIComponent(selectedVoice.id):'');
-      fetch(API+'/api/narration/'+s+'/auto-generate'+voiceParam).then(function(r){return r.json()}).then(function(d){
-        if(d.error){badge.textContent='Error';badge.className='status-badge status-error';logEl.textContent=d.error}
-        else{logEl.textContent=(d.textLength||'?')+' chars · voice: '+(d.voice||'default');doChk();loadVersions()}
-      }).catch(function(err){badge.textContent='Error';badge.className='status-badge status-error';logEl.textContent=err.message}).finally(function(){genBtn.disabled=false;genBtn.textContent='Generate';updateStats()})
-    };
-
-    versionsBtn.onclick=function(){
-      if(versionsPanel.style.display==='none'){versionsPanel.style.display='block';versionsBtn.textContent='Hide versions';loadVersions()}
-      else{versionsPanel.style.display='none';versionsBtn.textContent='Versions'}
-    };
-
-    function loadVersions(){
-      versionsPanel.innerHTML='<div style="font-size:11px;color:rgba(240,238,234,0.3)">Loading...</div>';
-      fetch(API+'/api/narration/'+s+'/versions').then(function(r){return r.json()}).then(function(data){
-        versionsPanel.innerHTML='';
-        if(!data.versions||!data.versions.length){versionsPanel.innerHTML='<div style="font-size:11px;color:rgba(240,238,234,0.2)">No versions</div>';return}
-        data.versions.forEach(function(v){
-          var vr=document.createElement('div');vr.className='version-row';
-          var fileEl=document.createElement('span');fileEl.className='version-file';fileEl.textContent=v.filename;
-          var dateEl=document.createElement('span');dateEl.className='version-date';dateEl.textContent=fmtDate(v.created);
-          var sizeEl=document.createElement('span');sizeEl.style.cssText='color:rgba(240,238,234,0.25);font-size:10px;width:50px;flex-shrink:0';sizeEl.textContent=fmtSize(v.size);
-          var vActions=document.createElement('span');vActions.style.cssText='display:flex;gap:4px;flex-shrink:0';
-          if(v.active){var al=document.createElement('span');al.className='version-active';al.textContent='Active';vActions.appendChild(al)}
-          else{var sb=document.createElement('button');sb.className='btn btn-primary btn-sm';sb.style.padding='3px 8px';sb.textContent='Set active';sb.onclick=function(){fetch(API+'/api/narration/'+s+'/set-active',{method:'POST',headers:authHeaders(),body:JSON.stringify({filename:v.filename})}).then(function(r){return r.json()}).then(function(){loadVersions();doChk()})};vActions.appendChild(sb)}
-          var pb=document.createElement('button');pb.className='btn btn-ghost btn-sm';pb.style.padding='3px 8px';pb.textContent='Play';var ae=null;
-          pb.onclick=function(){if(ae){ae.remove();ae=null;pb.textContent='Play';return}ae=document.createElement('audio');ae.controls=true;ae.src=v.url;ae.style.cssText='width:100%;height:32px;margin-top:4px';vr.after(ae);ae.play();pb.textContent='Stop'};
-          vActions.appendChild(pb);
-          var db=document.createElement('button');db.className='btn btn-danger btn-sm';db.style.padding='3px 8px';db.textContent='Delete';
-          db.onclick=function(){if(!confirm('Delete this version?'))return;fetch(API+'/api/narration/'+s+'/delete-version',{method:'POST',headers:authHeaders(),body:JSON.stringify({filename:v.filename})}).then(function(r){return r.json()}).then(function(){loadVersions();doChk()})};
-          vActions.appendChild(db);
-          vr.appendChild(fileEl);vr.appendChild(dateEl);vr.appendChild(sizeEl);vr.appendChild(vActions);
-          versionsPanel.appendChild(vr);
-        });
-      }).catch(function(){versionsPanel.innerHTML='<div style="font-size:11px;color:rgba(240,100,100,0.6)">Failed to load</div>'});
-    }
-
-    function doChk(){
-      badge.textContent='...';badge.className='status-badge status-none';
-      fetch(API+'/api/narration/'+s).then(function(r){return r.json()}).then(function(d){
-        if(d.exists){badge.textContent='Ready';badge.className='status-badge status-cached';versionsBtn.style.display='inline-block';statusMap[s]='ok'}
-        else{badge.textContent='Missing';badge.className='status-badge status-none';statusMap[s]='no'}
-        updateStats()
-      }).catch(function(){badge.textContent='Error';badge.className='status-badge status-error';statusMap[s]='er';updateStats()})
-    }
-    doChk();
+    fetch(API+'/api/narration/'+s).then(function(r){return r.json()}).then(function(d){
+      if(d.exists){badge.textContent='Ready';badge.className='status-badge status-cached';statusMap[s]='ok'}
+      else{badge.textContent='Missing';badge.className='status-badge status-none';statusMap[s]='no'}
+      updateStats();
+    }).catch(function(){badge.textContent='Error';badge.className='status-badge status-none';statusMap[s]='er';updateStats()});
   });
   c.appendChild(wrap);updateStats();
 }
+function refreshAll(){loadArticles()}
 
-function genAll(){document.querySelectorAll('.article-row').forEach(function(row){var b=row.querySelector('.status-badge');if(b&&(b.textContent==='Missing'||b.textContent==='Error')){var btn=row.querySelector('.btn-primary');if(btn&&btn.textContent==='Generate')btn.click()}})}
-function refreshAll(){render()}
+// ── Generate View ──
+function renderGen(slug){
+  var art=ARTICLES.find(function(a){return a.slug===slug})||{slug:slug,title:slug};
+  var el=document.getElementById('gen-content');
+  el.innerHTML='';
+
+  var title=document.createElement('div');title.className='gen-title';title.textContent=art.title;
+  var sub=document.createElement('div');sub.className='gen-subtitle';
+  sub.innerHTML=slug+' &middot; <a href="https://www.rialo.io/posts/'+slug+'" target="_blank" style="color:rgba(169,221,211,0.5);text-decoration:none">View article</a>';
+  el.appendChild(title);el.appendChild(sub);
+
+  // Voice section
+  var voiceSec=document.createElement('div');voiceSec.className='gen-section';
+  var voiceLabel=document.createElement('div');voiceLabel.className='gen-section-label';voiceLabel.textContent='Select voice and generate';
+  voiceSec.appendChild(voiceLabel);
+
+  VOICES.forEach(function(v){
+    var card=document.createElement('div');card.className='voice-card';
+    var info=document.createElement('div');info.className='voice-info';
+    info.innerHTML='<div class="voice-name">'+v.label+'</div><div class="voice-desc">'+v.desc+'</div>';
+    var right=document.createElement('div');right.style.cssText='display:flex;align-items:center;gap:12px;flex-shrink:0';
+    var link=document.createElement('a');link.href=v.url;link.target='_blank';link.className='voice-link';link.textContent='Preview on ElevenLabs';link.onclick=function(e){e.stopPropagation()};
+    var genBtn=document.createElement('button');genBtn.className='btn btn-primary btn-sm';genBtn.textContent='Generate';
+    genBtn.onclick=function(e){e.stopPropagation();startGen(slug,v,card,genBtn)};
+    right.appendChild(link);right.appendChild(genBtn);
+    card.appendChild(info);card.appendChild(right);
+    voiceSec.appendChild(card);
+  });
+  el.appendChild(voiceSec);
+
+  // Versions section
+  var verSec=document.createElement('div');verSec.className='gen-section versions-section';
+  var verLabel=document.createElement('div');verLabel.className='gen-section-label';verLabel.textContent='Versions';
+  var verList=document.createElement('div');verList.id='ver-list-'+slug;
+  verSec.appendChild(verLabel);verSec.appendChild(verList);
+  el.appendChild(verSec);
+  loadVersions(slug);
+
+  // Spotify section
+  var spotSec=document.createElement('div');spotSec.className='spotify-section';
+  spotSec.innerHTML='<div class="gen-section-label" style="margin-bottom:8px">Spotify episode</div>';
+  var spotRow=document.createElement('div');spotRow.className='spotify-row';
+  var spotInput=document.createElement('input');spotInput.className='spotify-input';spotInput.placeholder='https://open.spotify.com/episode/...';
+  var spotBtn=document.createElement('button');spotBtn.className='btn btn-primary btn-sm';spotBtn.textContent='Save';
+  var spotMsg=document.createElement('div');spotMsg.className='spotify-saved';
+  spotRow.appendChild(spotInput);spotRow.appendChild(spotBtn);
+  spotSec.appendChild(spotRow);spotSec.appendChild(spotMsg);
+  el.appendChild(spotSec);
+
+  fetch(API+'/api/spotify/'+slug).then(function(r){return r.json()}).then(function(d){
+    if(d.url)spotInput.value=d.url;
+  }).catch(function(){});
+
+  spotBtn.onclick=function(){
+    var url=spotInput.value.trim();
+    fetch(API+'/api/spotify/'+slug,{method:'POST',headers:authHeaders(),body:JSON.stringify({url:url})})
+    .then(function(r){return r.json()})
+    .then(function(){spotMsg.textContent=url?'Saved':'Cleared';setTimeout(function(){spotMsg.textContent=''},2000)})
+    .catch(function(err){spotMsg.textContent='Error: '+err.message;spotMsg.style.color='rgba(240,100,100,0.8)'});
+  };
+}
+
+// ── Generation ──
+function startGen(slug,voice,card,btn){
+  document.querySelectorAll('.voice-card .btn-primary').forEach(function(b){b.disabled=true});
+  card.classList.add('generating');
+  btn.textContent='Starting...';
+
+  var existing=document.getElementById('gen-progress-'+slug);
+  if(existing)existing.remove();
+
+  var prog=document.createElement('div');prog.className='gen-progress';prog.id='gen-progress-'+slug;
+  var status=document.createElement('div');status.className='progress-status';status.textContent='Generating with '+voice.label+'...';
+  var barWrap=document.createElement('div');barWrap.className='progress-bar-wrap';
+  var bar=document.createElement('div');bar.className='progress-bar';bar.style.width='10%';
+  barWrap.appendChild(bar);
+  var controls=document.createElement('div');controls.className='progress-controls';
+  var stopBtn=document.createElement('button');stopBtn.className='btn btn-stop';stopBtn.textContent='Stop';
+  controls.appendChild(stopBtn);
+  var log=document.createElement('div');log.className='progress-log';
+  prog.appendChild(status);prog.appendChild(barWrap);prog.appendChild(controls);prog.appendChild(log);
+  card.after(prog);
+
+  var controller=new AbortController();
+  abortControllers[slug]=controller;
+  var cancelled=false;
+
+  stopBtn.onclick=function(){
+    cancelled=true;
+    controller.abort();
+    status.textContent='Cancelled';
+    bar.className='progress-bar error';
+    bar.style.width='100%';
+    stopBtn.disabled=true;
+    var resumeBtn=document.createElement('button');resumeBtn.className='btn btn-primary';resumeBtn.textContent='Resume';
+    resumeBtn.onclick=function(){prog.remove();startGen(slug,voice,card,btn)};
+    controls.appendChild(resumeBtn);
+    document.querySelectorAll('.voice-card .btn-primary').forEach(function(b){b.disabled=false});
+    card.classList.remove('generating');
+    btn.textContent='Generate';
+  };
+
+  var progInterval=setInterval(function(){
+    var w=parseFloat(bar.style.width)||10;
+    if(w<85)bar.style.width=(w+Math.random()*8)+'%';
+  },2000);
+
+  var voiceParam='?token='+encodeURIComponent(TOKEN)+'&voice='+encodeURIComponent(voice.id);
+  fetch(API+'/api/narration/'+slug+'/auto-generate'+voiceParam,{signal:controller.signal})
+  .then(function(r){return r.json()})
+  .then(function(d){
+    clearInterval(progInterval);
+    if(d.error){
+      status.textContent='Error: '+d.error;
+      bar.className='progress-bar error';bar.style.width='100%';
+      prog.classList.add('error');
+    } else {
+      status.textContent='Generated successfully';
+      bar.style.width='100%';
+      prog.classList.add('done');
+      log.textContent=(d.textLength||'?')+' chars · voice: '+voice.label;
+      var audio=document.createElement('audio');audio.controls=true;audio.src=d.url;
+      prog.appendChild(audio);
+      var dlBtn=document.createElement('button');dlBtn.className='btn btn-ghost btn-sm';dlBtn.textContent='Download';dlBtn.style.marginTop='8px';
+      dlBtn.onclick=function(){window.location.href=API+'/api/narration/'+slug+'/download'};
+      controls.appendChild(dlBtn);
+      loadVersions(slug);
+      statusMap[slug]='ok';
+      updateStats();
+    }
+    stopBtn.remove();
+  })
+  .catch(function(err){
+    clearInterval(progInterval);
+    if(!cancelled){
+      status.textContent='Error: '+err.message;
+      bar.className='progress-bar error';bar.style.width='100%';
+    }
+  })
+  .finally(function(){
+    document.querySelectorAll('.voice-card .btn-primary').forEach(function(b){b.disabled=false});
+    card.classList.remove('generating');
+    btn.textContent='Generate';
+    delete abortControllers[slug];
+  });
+}
+
+// ── Versions ──
+function loadVersions(slug){
+  var container=document.getElementById('ver-list-'+slug);
+  if(!container)return;
+  container.innerHTML='<div style="font-size:12px;color:rgba(240,238,234,0.25);padding:8px 0">Loading...</div>';
+
+  fetch(API+'/api/narration/'+slug+'/versions',{headers:authHeaders()})
+  .then(function(r){return r.json()})
+  .then(function(data){
+    container.innerHTML='';
+    if(!data.versions||!data.versions.length){
+      container.innerHTML='<div style="font-size:12px;color:rgba(240,238,234,0.25);padding:8px 0">No versions yet.</div>';
+      return;
+    }
+    data.versions.forEach(function(v){
+      var isActive=v.active;
+      var row=document.createElement('div');
+      row.className='version-row'+(isActive?' active':'');
+
+      var audioWrap=document.createElement('div');audioWrap.style.cssText='flex-shrink:0';
+      var playBtn=document.createElement('button');playBtn.className='btn btn-ghost btn-sm';playBtn.textContent='▶';
+      playBtn.title='Preview';
+      var audioEl=null;
+      playBtn.onclick=function(){
+        if(audioEl){audioEl.remove();audioEl=null;playBtn.textContent='▶';return}
+        audioEl=document.createElement('audio');audioEl.controls=true;audioEl.src=v.url;audioEl.style.cssText='width:200px;height:28px;margin-left:8px;vertical-align:middle';
+        playBtn.after(audioEl);
+        audioEl.play();
+        playBtn.textContent='■';
+      };
+      audioWrap.appendChild(playBtn);
+
+      var info=document.createElement('div');info.className='version-info';
+      var voiceLabel=v.voice||'Unknown voice';
+      info.innerHTML='<div class="version-file">'+voiceLabel+'</div><div class="version-meta">'+(v.size?fmtSize(v.size)+' · ':'')+(v.created?fmtDate(v.created):'')+'</div>';
+
+      var tags=document.createElement('div');tags.style.cssText='display:flex;align-items:center;gap:6px;flex-shrink:0';
+      if(isActive){var at=document.createElement('span');at.className='version-active-tag';at.textContent='Active';tags.appendChild(at)}
+
+      var actions=document.createElement('div');actions.className='version-actions';
+
+      if(!isActive){
+        var setBtn=document.createElement('button');setBtn.className='btn btn-primary btn-sm';setBtn.textContent='Set active';
+        setBtn.onclick=function(){
+          fetch(API+'/api/narration/'+slug+'/set-active',{method:'POST',headers:authHeaders(),body:JSON.stringify({filename:v.filename})})
+          .then(function(r){return r.json()})
+          .then(function(){loadVersions(slug);statusMap[slug]='ok';updateStats()})
+          .catch(function(err){alert('Error: '+err.message)});
+        };
+        actions.appendChild(setBtn);
+      }
+
+      var delBtn=document.createElement('button');delBtn.className='btn btn-danger btn-sm';delBtn.textContent='Delete';
+      delBtn.onclick=function(){
+        if(!confirm('Delete this version?'))return;
+        fetch(API+'/api/narration/'+slug+'/delete-version',{method:'POST',headers:authHeaders(),body:JSON.stringify({filename:v.filename})})
+        .then(function(r){return r.json()})
+        .then(function(){loadVersions(slug)})
+        .catch(function(err){alert('Error: '+err.message)});
+      };
+      actions.appendChild(delBtn);
+
+      row.appendChild(audioWrap);row.appendChild(info);row.appendChild(tags);row.appendChild(actions);
+      container.appendChild(row);
+    });
+  })
+  .catch(function(){
+    container.innerHTML='<div style="font-size:12px;color:rgba(240,100,100,0.5);padding:8px 0">Could not load versions.</div>';
+  });
+}
 </script>
 </body>
 </html>
