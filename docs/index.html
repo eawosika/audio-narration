@@ -330,25 +330,73 @@ function renderGen(slug){
 
   // Spotify section
   var spotSec=document.createElement('div');spotSec.className='spotify-section';
-  spotSec.innerHTML='<div class="gen-section-label" style="margin-bottom:8px">Spotify episode</div>';
+
+  // Header row: label + Go to Spotify link
+  var spotHeader=document.createElement('div');spotHeader.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:12px';
+  var spotLabel=document.createElement('div');spotLabel.className='gen-section-label';spotLabel.style.margin='0';spotLabel.textContent='Spotify episode';
+  var spotLink=document.createElement('a');spotLink.href='https://creators.spotify.com/pod/show/7M9lOKzdEE39kGl2PhjFyt/home';spotLink.target='_blank';
+  spotLink.style.cssText='font-size:11px;color:rgba(169,221,211,0.5);text-decoration:none;display:flex;align-items:center;gap:5px;transition:color 0.15s';
+  spotLink.onmouseover=function(){this.style.color='#a9ddd3'};spotLink.onmouseout=function(){this.style.color='rgba(169,221,211,0.5)'};
+  spotLink.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>Go to Spotify';
+  spotHeader.appendChild(spotLabel);spotHeader.appendChild(spotLink);
+  spotSec.appendChild(spotHeader);
+
+  // Episode URL input
   var spotRow=document.createElement('div');spotRow.className='spotify-row';
   var spotInput=document.createElement('input');spotInput.className='spotify-input';spotInput.placeholder='https://open.spotify.com/episode/...';
-  var spotBtn=document.createElement('button');spotBtn.className='btn btn-primary btn-sm';spotBtn.textContent='Save';
+  var spotSaveBtn=document.createElement('button');spotSaveBtn.className='btn btn-primary btn-sm';spotSaveBtn.textContent='Save';
   var spotMsg=document.createElement('div');spotMsg.className='spotify-saved';
-  spotRow.appendChild(spotInput);spotRow.appendChild(spotBtn);
+  spotRow.appendChild(spotInput);spotRow.appendChild(spotSaveBtn);
   spotSec.appendChild(spotRow);spotSec.appendChild(spotMsg);
+
+  // Episode description generator
+  var descSec=document.createElement('div');descSec.style.cssText='margin-top:16px;padding-top:16px;border-top:1px solid rgba(240,238,234,0.06)';
+  var descHeader=document.createElement('div');descHeader.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:8px';
+  var descLabel=document.createElement('div');descLabel.style.cssText='font-size:11px;color:rgba(240,238,234,0.35)';descLabel.textContent='Episode description';
+  var descGenBtn=document.createElement('button');descGenBtn.className='btn btn-ghost btn-sm';descGenBtn.textContent='Generate';
+  descHeader.appendChild(descLabel);descHeader.appendChild(descGenBtn);
+  var descArea=document.createElement('textarea');
+  descArea.style.cssText='width:100%;min-height:100px;padding:10px 12px;border:1px solid rgba(169,221,211,0.12);border-radius:6px;font-size:12px;background:#0a0a0a;color:#f0eeea;outline:none;font-family:inherit;resize:vertical;line-height:1.6';
+  descArea.placeholder='Episode description will appear here...';
+  var descActions=document.createElement('div');descActions.style.cssText='display:flex;gap:8px;margin-top:8px';
+  var descCopyBtn=document.createElement('button');descCopyBtn.className='btn btn-ghost btn-sm';descCopyBtn.textContent='Copy';descCopyBtn.style.display='none';
+  var descMsg=document.createElement('div');descMsg.style.cssText='font-size:11px;color:rgba(169,221,211,0.6);align-self:center';
+  descActions.appendChild(descCopyBtn);descActions.appendChild(descMsg);
+  descSec.appendChild(descHeader);descSec.appendChild(descArea);descSec.appendChild(descActions);
+  spotSec.appendChild(descSec);
+
   el.appendChild(spotSec);
 
+  // Load existing Spotify URL
   fetch(API+'/api/spotify/'+slug).then(function(r){return r.json()}).then(function(d){
     if(d.url)spotInput.value=d.url;
   }).catch(function(){});
 
-  spotBtn.onclick=function(){
+  spotSaveBtn.onclick=function(){
     var url=spotInput.value.trim();
     fetch(API+'/api/spotify/'+slug,{method:'POST',headers:authHeaders(),body:JSON.stringify({url:url})})
     .then(function(r){return r.json()})
     .then(function(){spotMsg.textContent=url?'Saved':'Cleared';setTimeout(function(){spotMsg.textContent=''},2000)})
     .catch(function(err){spotMsg.textContent='Error: '+err.message;spotMsg.style.color='rgba(240,100,100,0.8)'});
+  };
+
+  descCopyBtn.onclick=function(){
+    navigator.clipboard.writeText(descArea.value).then(function(){
+      descMsg.textContent='Copied!';setTimeout(function(){descMsg.textContent=''},2000);
+    });
+  };
+
+  descGenBtn.onclick=function(){
+    descGenBtn.disabled=true;descGenBtn.textContent='Generating...';descMsg.textContent='';
+    fetch(API+'/api/generate-description',{method:'POST',headers:authHeaders(),body:JSON.stringify({slug:slug})})
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if(d.error){descMsg.textContent='Error: '+d.error;descMsg.style.color='rgba(240,100,100,0.7)';return}
+      descArea.value=d.description||'';
+      descCopyBtn.style.display='inline-block';
+    })
+    .catch(function(err){descMsg.textContent='Error: '+err.message;descMsg.style.color='rgba(240,100,100,0.7)'})
+    .finally(function(){descGenBtn.disabled=false;descGenBtn.textContent='Generate'});
   };
 }
 
