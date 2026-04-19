@@ -729,44 +729,70 @@ app.get('/api/articles', async (req, res) => {
   try {
     const articles = [];
     const seen = new Set();
+    const debug = { pages: [] };
 
     for (const page of ['/blog', '/docs']) {
-      const response = await fetch(`${RIALO_BASE}${page}`);
-      if (!response.ok) continue;
-      const html = await response.text();
+      try {
+        const url = `${RIALO_BASE}${page}`;
+        console.log('Fetching:', url);
+        const response = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; RialoAudioBot/1.0)',
+            'Accept': 'text/html'
+          }
+        });
+        if (!response.ok) {
+          console.log(`Failed ${page}: ${response.status}`);
+          debug.pages.push({ page, status: response.status, slugs: 0 });
+          continue;
+        }
+        const html = await response.text();
+        console.log(`Got ${html.length} chars from ${page}`);
 
-      const linkMatches = html.matchAll(/href="https:\/\/www\.rialo\.io\/posts\/([^"]+)"/g);
-      for (const m of linkMatches) {
-        const slug = m[1].replace(/\/$/, '');
-        if (seen.has(slug)) continue;
-        seen.add(slug);
-
-        let title = '';
-        const titlePattern = new RegExp('href="https://www\\.rialo\\.io/posts/' + slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '"[^>]*>[\\s\\S]*?###\\s*([^<\\n]+)', 'i');
-        const titleMatch = html.match(titlePattern);
-        if (titleMatch) {
-          title = titleMatch[1].trim();
+        const pageSlugs = [];
+        // Match all href attributes pointing to /posts/
+        let match;
+        const regex = /href="[^"]*\/posts\/([^"#?]+)"/gi;
+        while ((match = regex.exec(html)) !== null) {
+          const slug = match[1].replace(/\/$/, '').trim();
+          if (slug && !seen.has(slug)) {
+            seen.add(slug);
+            pageSlugs.push(slug);
+          }
         }
 
-        if (!title) {
-          const altPattern = new RegExp('<h[23][^>]*>([^<]+)</h[23]>[\\s\\S]{0,500}' + slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-          const altMatch = html.match(altPattern);
-          if (altMatch) title = altMatch[1].trim();
-        }
-
-        if (!title) {
-          title = slug.replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
-        }
-
-        articles.push({ slug, title });
+        console.log(`Found ${pageSlugs.length} new slugs from ${page}:`, pageSlugs);
+        debug.pages.push({ page, htmlLength: html.length, slugs: pageSlugs.length, found: pageSlugs });
+      } catch (err) {
+        console.error(`Error on ${page}:`, err.message);
+        debug.pages.push({ page, error: err.message });
       }
     }
 
+    // Fetch titles from each post page
+    for (const slug of seen) {
+      let title = slug.replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+      try {
+        const postRes = await fetch(`${RIALO_BASE}/posts/${slug}`, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; RialoAudioBot/1.0)', 'Accept': 'text/html' }
+        });
+        if (postRes.ok) {
+          const postHtml = await postRes.text();
+          const titleMatch = postHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+          if (titleMatch) {
+            title = titleMatch[1].replace(/<[^>]+>/g, '').trim();
+          }
+        }
+      } catch (err) {}
+      articles.push({ slug, title });
+    }
+
     articles.sort((a, b) => a.title.localeCompare(b.title));
-    res.json({ articles });
+    console.log('Total articles:', articles.length);
+    res.json({ articles, debug });
   } catch (err) {
-    console.error('Fetch articles error:', err);
-    res.status(500).json({ error: 'Failed to fetch articles' });
+    console.error('Articles error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
