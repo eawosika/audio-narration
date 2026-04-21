@@ -241,7 +241,7 @@ function loadArticles(){
     {slug:'rethinking-protocol-upgrades-with-gauss',title:'Rethinking Protocol Upgrades with Gauss'},
     {slug:'understanding-distributed-key-generation',title:'Building Blocks of Threshold Cryptography: Distributed Key Generation'},
     {slug:'a-practical-guide-to-consistency-in-distributed-systems',title:'A Practical Guide to Consistency in Distributed Systems'},
-    {slug:'supermodularity-and-system-welfare',title:'Supermodularity and System Welfare'}
+    {slug:'supermodularity-and-system-welfare-the-economics-of-integration',title:'Supermodularity and System Welfare: The Economics of Integration'}
   ];
   renderList();
   fetch(API+'/api/articles').then(function(r){return r.json()}).then(function(data){
@@ -606,21 +606,23 @@ function loadVersions(slug){
       var row=document.createElement('div');
       row.className='version-row'+(isActive?' active':'');
 
-      var audioWrap=document.createElement('div');audioWrap.style.cssText='flex-shrink:0';
+      var audioWrap=document.createElement('div');audioWrap.style.cssText='flex-shrink:0;display:flex;align-items:center;gap:8px';
       var playBtn=document.createElement('button');playBtn.className='btn btn-ghost btn-sm';playBtn.textContent='▶';
       playBtn.title='Preview';
       var audioEl=null;
       playBtn.onclick=function(){
-        if(audioEl){audioEl.remove();audioEl=null;playBtn.textContent='▶';return}
-        audioEl=document.createElement('audio');audioEl.controls=true;audioEl.src=v.url;audioEl.style.cssText='width:200px;height:28px;margin-left:8px;vertical-align:middle';
-        playBtn.after(audioEl);
-        audioEl.play();
+        if(audioEl){audioEl.pause();audioEl.remove();audioEl=null;playBtn.textContent='▶';return}
+        audioEl=document.createElement('audio');audioEl.controls=true;audioEl.src=v.url;
+        audioEl.style.cssText='width:180px;height:28px;vertical-align:middle';
+        audioWrap.appendChild(audioEl);
+        audioEl.play().catch(function(){});
         playBtn.textContent='■';
       };
       audioWrap.appendChild(playBtn);
 
       var info=document.createElement('div');info.className='version-info';
-      var voiceLabel=v.voice||'Unknown voice';
+      var voiceId=v.voice||null;
+      var voiceLabel=voiceId?(VOICES.find(function(x){return x.id===voiceId})||{label:voiceId}).label:'Unknown voice';
       info.innerHTML='<div class="version-file">'+voiceLabel+'</div><div class="version-meta">'+(v.size?fmtSize(v.size)+' · ':'')+(v.created?fmtDate(v.created):'')+'</div>';
 
       var tags=document.createElement('div');tags.style.cssText='display:flex;align-items:center;gap:6px;flex-shrink:0';

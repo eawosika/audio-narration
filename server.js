@@ -20,6 +20,14 @@ const CHUNKS_DIR = path.join(AUDIO_DIR, '.chunks');
 
 const ACTIVE_MAP_PATH = path.join(AUDIO_DIR, '.active.json');
 const SPOTIFY_MAP_PATH = path.join(AUDIO_DIR, '.spotify.json');
+const VOICE_META_PATH = path.join(AUDIO_DIR, '.voice-meta.json');
+
+async function loadVoiceMeta() {
+  try { return JSON.parse(await fs.readFile(VOICE_META_PATH, 'utf8')); } catch { return {}; }
+}
+async function saveVoiceMeta(map) {
+  await fs.writeFile(VOICE_META_PATH, JSON.stringify(map, null, 2));
+}
 
 async function loadActiveMap() {
   try {
@@ -512,6 +520,13 @@ async function generateAudio(postId, text, metadata = {}, voiceOverride = null) 
   const url = `${BASE_URL}/audio/${filename}`;
   console.log(`Audio cached: ${url}`);
 
+  // Store voice label for versions display
+  try {
+    const meta = await loadVoiceMeta();
+    meta[filename] = voice;
+    await saveVoiceMeta(meta);
+  } catch (e) { console.error('Failed to save voice meta:', e.message); }
+
   return { url, cached: false };
 }
 
@@ -708,6 +723,7 @@ app.get('/api/narration/:postId/versions', async (req, res) => {
     const matches = files.filter(f => f.startsWith(`${postId}_`) && f.endsWith('.mp3'));
     const activeMap = await loadActiveMap();
     const activeFile = activeMap[postId] || null;
+    const voiceMeta = await loadVoiceMeta();
 
     const versions = await Promise.all(matches.map(async (filename) => {
       const filepath = path.join(AUDIO_DIR, filename);
@@ -717,7 +733,8 @@ app.get('/api/narration/:postId/versions', async (req, res) => {
         url: `${BASE_URL}/audio/${filename}`,
         size: stat.size,
         created: stat.birthtime || stat.mtime,
-        active: filename === activeFile
+        active: filename === activeFile,
+        voice: voiceMeta[filename] || null
       };
     }));
 
