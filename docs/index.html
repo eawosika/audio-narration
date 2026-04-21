@@ -644,6 +644,10 @@ function loadVersions(slug){
 
       var actions=document.createElement('div');actions.className='version-actions';
 
+      var dlBtn=document.createElement('button');dlBtn.className='btn btn-ghost btn-sm';dlBtn.textContent='Download';
+      dlBtn.onclick=function(){window.location.href=API+'/api/narration/'+slug+'/download?token='+encodeURIComponent(TOKEN)+'&filename='+encodeURIComponent(v.filename)};
+      actions.appendChild(dlBtn);
+
       if(!isActive){
         var setBtn=document.createElement('button');setBtn.className='btn btn-primary btn-sm';setBtn.textContent='Set active';
         setBtn.onclick=function(){
@@ -654,7 +658,6 @@ function loadVersions(slug){
         };
         actions.appendChild(setBtn);
       }
-
       var delBtn=document.createElement('button');delBtn.className='btn btn-danger btn-sm';delBtn.textContent='Delete';
       delBtn.onclick=function(){
         if(!confirm('Delete this version?'))return;

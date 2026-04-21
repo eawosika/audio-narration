@@ -707,8 +707,12 @@ app.get('/api/narration/:postId/job-status', adminAuth, (req, res) => {
 app.get('/api/narration/:postId/download', async (req, res) => {
   try {
     const { postId } = req.params;
+    const specificFile = req.query.filename || null;
     const files = await fs.readdir(AUDIO_DIR);
-    const match = files.find(f => f.startsWith(`${postId}_`) && f.endsWith('.mp3'));
+
+    const match = specificFile
+      ? files.find(f => f === specificFile)
+      : files.find(f => f.startsWith(`${postId}_`) && f.endsWith('.mp3'));
 
     if (!match) {
       return res.status(404).json({ error: 'No audio found for this post.' });
