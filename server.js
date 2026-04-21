@@ -609,7 +609,7 @@ app.get('/api/narration/:postId/auto-generate', adminAuth, async (req, res) => {
         console.log(`Extracted ${text.length} chars, title: "${metadata.title}"`);
         const result = await generateAudio(postId, text, metadata, voiceOverride);
         jobs[jobKey] = {
-          status: result.cached ? 'already_cached' : 'done',
+          status: 'done',
           jobKey,
           url: result.url,
           slug: postId,

@@ -509,47 +509,70 @@ function startGen(slug,voice,card,btn){
     var jobKey=d.jobKey;
     var pollCount=0;
     var maxPolls=120; // 10 minutes at 5s intervals
+
+    function handleDone(url,textLength){
+      clearInterval(pollInterval);clearInterval(progInterval);
+      status.textContent='Generated successfully';
+      bar.style.width='100%';prog.classList.add('done');
+      log.textContent=(textLength||'')+(textLength?' chars · ':'')+'voice: '+voice.label;
+      var audioEl=document.createElement('audio');audioEl.controls=true;audioEl.src=url;prog.appendChild(audioEl);
+      var dlBtn=document.createElement('button');dlBtn.className='btn btn-ghost btn-sm';dlBtn.textContent='Download';dlBtn.style.marginTop='8px';
+      dlBtn.onclick=function(){window.location.href=API+'/api/narration/'+slug+'/download'};
+      controls.appendChild(dlBtn);
+      if(stopBtn.parentNode)stopBtn.remove();
+      loadVersions(slug);statusMap[slug]='ok';updateStats();
+      document.querySelectorAll('.voice-card .btn-primary').forEach(function(b){b.disabled=false});
+      card.classList.remove('generating');btn.textContent='Generate';
+      delete abortControllers[slug];
+    }
+
+    function handlePollError(msg){
+      clearInterval(pollInterval);clearInterval(progInterval);
+      status.textContent='Error: '+msg;
+      bar.className='progress-bar error';bar.style.width='100%';
+      prog.classList.add('error');
+      if(stopBtn.parentNode)stopBtn.remove();
+      document.querySelectorAll('.voice-card .btn-primary').forEach(function(b){b.disabled=false});
+      card.classList.remove('generating');btn.textContent='Generate';
+      delete abortControllers[slug];
+    }
+
     var pollInterval=setInterval(function(){
-      if(cancelled){clearInterval(pollInterval);return}
+      // Even if cancelled by user, keep polling silently — server may have finished
       pollCount++;
-      if(pollCount>maxPolls){
-        clearInterval(pollInterval);clearInterval(progInterval);
-        status.textContent='Timed out waiting for generation';
-        bar.className='progress-bar error';bar.style.width='100%';
-        prog.classList.add('error');stopBtn.remove();
-        document.querySelectorAll('.voice-card .btn-primary').forEach(function(b){b.disabled=false});
-        card.classList.remove('generating');btn.textContent='Generate';
-        delete abortControllers[slug];
-        return;
-      }
+      if(pollCount>maxPolls){handlePollError('Timed out waiting for generation');return}
+
+      // First check job status
       fetch(API+'/api/narration/'+slug+'/job-status?token='+encodeURIComponent(TOKEN)+'&voice='+encodeURIComponent(voice.id))
       .then(function(r){return r.json()})
       .then(function(job){
         if(job.status==='running'){
-          log.textContent='Working... ('+Math.round(pollCount*5)+'s elapsed)';
+          if(!cancelled){log.textContent='Working... ('+Math.round(pollCount*5)+'s elapsed)';}
           return;
         }
-        clearInterval(pollInterval);clearInterval(progInterval);
-        if(job.status==='error'){
-          status.textContent='Error: '+job.error;
-          bar.className='progress-bar error';bar.style.width='100%';
-          prog.classList.add('error');
-        } else {
-          status.textContent='Generated successfully';
-          bar.style.width='100%';prog.classList.add('done');
-          log.textContent=(job.textLength||'?')+' chars · voice: '+voice.label;
-          var audio=document.createElement('audio');audio.controls=true;audio.src=job.url;prog.appendChild(audio);
-          var dlBtn=document.createElement('button');dlBtn.className='btn btn-ghost btn-sm';dlBtn.textContent='Download';dlBtn.style.marginTop='8px';
-          dlBtn.onclick=function(){window.location.href=API+'/api/narration/'+slug+'/download'};
-          controls.appendChild(dlBtn);
-          loadVersions(slug);statusMap[slug]='ok';updateStats();
+        if(job.status==='done'||job.url){
+          handleDone(job.url,job.textLength);
+          return;
         }
-        stopBtn.remove();
-        document.querySelectorAll('.voice-card .btn-primary').forEach(function(b){b.disabled=false});
-        card.classList.remove('generating');btn.textContent='Generate';
-        delete abortControllers[slug];
+        if(job.status==='error'){
+          handlePollError(job.error||'Unknown error');
+          return;
+        }
+        // job not_found or ambiguous — fall back to checking narration directly
+        fetch(API+'/api/narration/'+slug)
+        .then(function(r){return r.json()})
+        .then(function(n){
+          if(n.exists&&n.url){handleDone(n.url,null)}
+          // else keep polling
+        }).catch(function(){});
       })
-      .catch(function(){/* ignore poll errors, keep trying */});
+      .catch(function(){
+        // Poll request failed — fall back to checking narration directly
+        fetch(API+'/api/narration/'+slug)
+        .then(function(r){return r.json()})
+        .then(function(n){if(n.exists&&n.url)handleDone(n.url,null)})
+        .catch(function(){});
+      });
     },5000);
   })
   .catch(function(err){
