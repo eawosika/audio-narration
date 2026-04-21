@@ -450,26 +450,29 @@ function startGen(slug,voice,card,btn){
   var controller=new AbortController();
   abortControllers[slug]=controller;
   var cancelled=false;
+  var paused=false;
 
   stopBtn.onclick=function(){
-    cancelled=true;
-    controller.abort();
-    status.textContent='Cancelled';
-    bar.className='progress-bar error';
-    bar.style.width='100%';
+    paused=true;
     stopBtn.disabled=true;
+    status.textContent='Paused — generation continues in background';
+    bar.style.background='rgba(240,180,50,0.6)';
     var resumeBtn=document.createElement('button');resumeBtn.className='btn btn-primary';resumeBtn.textContent='Resume';
-    resumeBtn.onclick=function(){prog.remove();startGen(slug,voice,card,btn)};
-    controls.appendChild(resumeBtn);
-    document.querySelectorAll('.voice-card .btn-primary').forEach(function(b){b.disabled=false});
-    card.classList.remove('generating');
-    btn.textContent='Generate';
+    resumeBtn.onclick=function(){
+      paused=false;
+      resumeBtn.remove();
+      stopBtn.disabled=false;
+      status.textContent='Generating with '+voice.label+'...';
+      bar.style.background='#a9ddd3';
+    };
+    controls.insertBefore(resumeBtn,stopBtn.nextSibling);
   };
 
+  // Minimal fake animation just for the first few seconds before first poll
   var progInterval=setInterval(function(){
     var w=parseFloat(bar.style.width)||10;
-    if(w<85)bar.style.width=(w+Math.random()*8)+'%';
-  },2000);
+    if(w<15)bar.style.width=(w+1)+'%';
+  },1000);
 
   var voiceParam='?token='+encodeURIComponent(TOKEN)+'&voice='+encodeURIComponent(voice.id);
   fetch(API+'/api/narration/'+slug+'/auto-generate'+voiceParam,{signal:controller.signal})
@@ -512,6 +515,10 @@ function startGen(slug,voice,card,btn){
 
     function handleDone(url,textLength){
       clearInterval(pollInterval);clearInterval(progInterval);
+      // Remove any leftover Stop/Resume buttons
+      controls.querySelectorAll('button').forEach(function(b){
+        if(b.textContent==='Stop'||b.textContent==='Resume')b.remove();
+      });
       status.textContent='Generated successfully';
       bar.style.width='100%';prog.classList.add('done');
       log.textContent=(textLength||'')+(textLength?' chars · ':'')+'voice: '+voice.label;
@@ -547,7 +554,14 @@ function startGen(slug,voice,card,btn){
       .then(function(r){return r.json()})
       .then(function(job){
         if(job.status==='running'){
-          if(!cancelled){log.textContent='Working... ('+Math.round(pollCount*5)+'s elapsed)';}
+          // Update real progress if chunk data available
+          if(job.totalChunks&&job.totalChunks>0){
+            var realPct=Math.round((job.completedChunks||0)/job.totalChunks*100);
+            bar.style.width=Math.max(realPct,parseFloat(bar.style.width)||10)+'%';
+            if(!paused)log.textContent='Chunk '+(job.completedChunks||0)+' of '+job.totalChunks+' · '+(Math.round(pollCount*5))+'s elapsed';
+          } else {
+            if(!paused)log.textContent='Working... ('+Math.round(pollCount*5)+'s elapsed)';
+          }
           return;
         }
         if(job.status==='done'||job.url){
@@ -577,7 +591,7 @@ function startGen(slug,voice,card,btn){
   })
   .catch(function(err){
     clearInterval(progInterval);
-    if(!cancelled){
+    if(!paused){
       status.textContent='Error: '+err.message;
       bar.className='progress-bar error';bar.style.width='100%';
     }

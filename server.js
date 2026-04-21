@@ -21,12 +21,42 @@ const CHUNKS_DIR = path.join(AUDIO_DIR, '.chunks');
 const ACTIVE_MAP_PATH = path.join(AUDIO_DIR, '.active.json');
 const SPOTIFY_MAP_PATH = path.join(AUDIO_DIR, '.spotify.json');
 const VOICE_META_PATH = path.join(AUDIO_DIR, '.voice-meta.json');
+const JOBS_PATH = path.join(AUDIO_DIR, '.jobs.json');
 
 async function loadVoiceMeta() {
   try { return JSON.parse(await fs.readFile(VOICE_META_PATH, 'utf8')); } catch { return {}; }
 }
 async function saveVoiceMeta(map) {
   await fs.writeFile(VOICE_META_PATH, JSON.stringify(map, null, 2));
+}
+
+// Persistent job store — survives Railway restarts
+const jobs = {};
+
+async function loadJobs() {
+  try {
+    const data = JSON.parse(await fs.readFile(JOBS_PATH, 'utf8'));
+    // Only restore terminal states (done/error) — running jobs didn't survive restart
+    for (const [key, job] of Object.entries(data)) {
+      if (job.status === 'done' || job.status === 'error') {
+        jobs[key] = job;
+      }
+    }
+    console.log(`Loaded ${Object.keys(jobs).length} persisted jobs`);
+  } catch { /* no jobs file yet, that's fine */ }
+}
+
+async function persistJob(jobKey, job) {
+  try {
+    jobs[jobKey] = job;
+    // Read existing, merge, write back
+    let existing = {};
+    try { existing = JSON.parse(await fs.readFile(JOBS_PATH, 'utf8')); } catch {}
+    existing[jobKey] = job;
+    await fs.writeFile(JOBS_PATH, JSON.stringify(existing, null, 2));
+  } catch (e) {
+    console.error('Failed to persist job:', e.message);
+  }
 }
 
 async function loadActiveMap() {
@@ -59,6 +89,7 @@ const RIALO_BASE = 'https://www.rialo.io';
 
 await fs.mkdir(AUDIO_DIR, { recursive: true });
 await fs.mkdir(CHUNKS_DIR, { recursive: true });
+await loadJobs();
 
 app.use('/audio', express.static(AUDIO_DIR, {
   maxAge: '365d',
@@ -241,26 +272,39 @@ function cleanTextForSpeech(text) {
     .trim();
 }
 
-async function generateChunkAudio(text, voice) {
+async function generateChunkAudio(text, voice, retries = 3) {
   const useVoice = voice || VOICE_ID;
-  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${useVoice}`, {
-    method: 'POST',
-    headers: {
-      'xi-api-key': ELEVEN_API_KEY,
-      'Content-Type': 'application/json',
-      'Accept': 'audio/mpeg',
-    },
-    body: JSON.stringify({
-      text,
-      model_id: MODEL_ID,
-      voice_settings: { stability: 0.5, similarity_boost: 0.75 },
-    }),
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`ElevenLabs error ${res.status}: ${err}`);
+  let lastErr;
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${useVoice}`, {
+        method: 'POST',
+        headers: {
+          'xi-api-key': ELEVEN_API_KEY,
+          'Content-Type': 'application/json',
+          'Accept': 'audio/mpeg',
+        },
+        body: JSON.stringify({
+          text,
+          model_id: MODEL_ID,
+          voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`ElevenLabs error ${res.status}: ${err}`);
+      }
+      return Buffer.from(await res.arrayBuffer());
+    } catch (err) {
+      lastErr = err;
+      if (attempt < retries) {
+        const delay = attempt * 3000; // 3s, 6s backoff
+        console.warn(`  Chunk attempt ${attempt} failed, retrying in ${delay/1000}s: ${err.message}`);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
   }
-  return Buffer.from(await res.arrayBuffer());
+  throw lastErr;
 }
 
 async function fixMp3Duration(filepath) {
@@ -468,7 +512,7 @@ async function fetchArticleText(slug) {
   return text.slice(0, 50000);
 }
 
-async function generateAudio(postId, text, metadata = {}, voiceOverride = null) {
+async function generateAudio(postId, text, metadata = {}, voiceOverride = null, onProgress = null) {
   const hash = hashText(text + (voiceOverride || ''));
   const filename = getFilename(postId, hash);
   const filepath = path.join(AUDIO_DIR, filename);
@@ -481,22 +525,27 @@ async function generateAudio(postId, text, metadata = {}, voiceOverride = null) 
   const voice = voiceOverride || VOICE_ID;
   console.log(`Generating audio for "${postId}": ${chunks.length} chunk(s), ${text.length} chars, voice: ${voice}`);
 
-  const audioBuffers = [];
+  if (onProgress) onProgress(0, chunks.length);
 
-  for (let i = 0; i < chunks.length; i++) {
-    const chunkHash = hashText(chunks[i]);
+  // Generate all chunks in parallel, preserving order
+  let completed = 0;
+  const audioBuffers = await Promise.all(chunks.map(async (chunk, i) => {
+    const chunkHash = hashText(chunk);
     const chunkFile = path.join(CHUNKS_DIR, `${postId}_${hash}_chunk${i}_${chunkHash}.mp3`);
-
     if (await fileExists(chunkFile)) {
       console.log(`  Chunk ${i + 1}/${chunks.length}: cached`);
-      audioBuffers.push(await fs.readFile(chunkFile));
-    } else {
-      console.log(`  Chunk ${i + 1}/${chunks.length}: generating (${chunks[i].length} chars)`);
-      const buffer = await generateChunkAudio(chunks[i], voice);
-      await fs.writeFile(chunkFile, buffer);
-      audioBuffers.push(buffer);
+      const buf = await fs.readFile(chunkFile);
+      completed++;
+      if (onProgress) onProgress(completed, chunks.length);
+      return buf;
     }
-  }
+    console.log(`  Chunk ${i + 1}/${chunks.length}: generating (${chunk.length} chars)`);
+    const buffer = await generateChunkAudio(chunk, voice);
+    await fs.writeFile(chunkFile, buffer);
+    completed++;
+    if (onProgress) onProgress(completed, chunks.length);
+    return buffer;
+  }));
 
   const fullAudio = Buffer.concat(audioBuffers);
   await fs.writeFile(filepath, fullAudio);
@@ -579,9 +628,6 @@ app.post('/api/narration/:postId/generate', async (req, res) => {
   }
 });
 
-// In-memory job store
-const jobs = {};
-
 app.get('/api/narration/:postId/auto-generate', adminAuth, async (req, res) => {
   try {
     const { postId } = req.params;
@@ -611,7 +657,7 @@ app.get('/api/narration/:postId/auto-generate', adminAuth, async (req, res) => {
 
     // Start async job, respond immediately
     const job = { status: 'running', jobKey, startedAt: Date.now() };
-    jobs[jobKey] = job;
+    jobs[jobKey] = job; // in-memory only for running state
 
     res.json({ status: 'started', jobKey });
 
@@ -622,19 +668,25 @@ app.get('/api/narration/:postId/auto-generate', adminAuth, async (req, res) => {
         const text = await fetchArticleText(postId);
         const metadata = await fetchArticleMetadata(postId);
         console.log(`Extracted ${text.length} chars, title: "${metadata.title}"`);
-        const result = await generateAudio(postId, text, metadata, voiceOverride);
-        jobs[jobKey] = {
+
+        // Update job with chunk counts as generation progresses
+        const onProgress = (completed, total) => {
+          jobs[jobKey] = { ...jobs[jobKey], completedChunks: completed, totalChunks: total };
+        };
+
+        const result = await generateAudio(postId, text, metadata, voiceOverride, onProgress);
+        await persistJob(jobKey, {
           status: 'done',
           jobKey,
           url: result.url,
           slug: postId,
           textLength: text.length,
           voice: voiceOverride || VOICE_ID
-        };
+        });
         console.log(`Job done: ${jobKey}`);
       } catch (err) {
         console.error(`Job failed: ${jobKey}`, err.message);
-        jobs[jobKey] = { status: 'error', jobKey, error: err.message };
+        await persistJob(jobKey, { status: 'error', jobKey, error: err.message });
       }
     })();
   } catch (err) {
