@@ -564,13 +564,22 @@ app.post('/api/narration/:postId/generate', async (req, res) => {
   }
 });
 
+// In-memory job store
+const jobs = {};
+
 app.get('/api/narration/:postId/auto-generate', adminAuth, async (req, res) => {
   try {
     const { postId } = req.params;
     const voiceOverride = req.query.voice || null;
 
+    // Check cache first
     const files = await fs.readdir(AUDIO_DIR);
-    const existing = files.find(f => f.startsWith(`${postId}_`) && f.endsWith('.mp3'));
+    const activeMap = await loadActiveMap();
+    const activeFile = activeMap[postId];
+    const existing = activeFile
+      ? files.find(f => f === activeFile)
+      : files.find(f => f.startsWith(`${postId}_`) && f.endsWith('.mp3'));
+
     if (existing && !voiceOverride) {
       return res.json({
         status: 'already_cached',
@@ -579,24 +588,53 @@ app.get('/api/narration/:postId/auto-generate', adminAuth, async (req, res) => {
       });
     }
 
-    console.log(`Auto-generating audio for: ${postId}` + (voiceOverride ? ` (voice: ${voiceOverride})` : ''));
-    const text = await fetchArticleText(postId);
-    const metadata = await fetchArticleMetadata(postId);
-    console.log(`Extracted ${text.length} chars, title: "${metadata.title}"`);
+    // Check if a job is already running for this slug+voice
+    const jobKey = postId + (voiceOverride || '');
+    if (jobs[jobKey] && jobs[jobKey].status === 'running') {
+      return res.json({ status: 'running', jobKey });
+    }
 
-    const result = await generateAudio(postId, text, metadata, voiceOverride);
+    // Start async job, respond immediately
+    const job = { status: 'running', jobKey, startedAt: Date.now() };
+    jobs[jobKey] = job;
 
-    res.json({
-      status: result.cached ? 'already_cached' : 'generated',
-      url: result.url,
-      slug: postId,
-      textLength: text.length,
-      voice: voiceOverride || VOICE_ID
-    });
+    res.json({ status: 'started', jobKey });
+
+    // Run generation in background
+    (async () => {
+      try {
+        console.log(`Auto-generating audio for: ${postId}` + (voiceOverride ? ` (voice: ${voiceOverride})` : ''));
+        const text = await fetchArticleText(postId);
+        const metadata = await fetchArticleMetadata(postId);
+        console.log(`Extracted ${text.length} chars, title: "${metadata.title}"`);
+        const result = await generateAudio(postId, text, metadata, voiceOverride);
+        jobs[jobKey] = {
+          status: result.cached ? 'already_cached' : 'done',
+          jobKey,
+          url: result.url,
+          slug: postId,
+          textLength: text.length,
+          voice: voiceOverride || VOICE_ID
+        };
+        console.log(`Job done: ${jobKey}`);
+      } catch (err) {
+        console.error(`Job failed: ${jobKey}`, err.message);
+        jobs[jobKey] = { status: 'error', jobKey, error: err.message };
+      }
+    })();
   } catch (err) {
     console.error('Auto-generate error:', err);
     res.status(500).json({ error: err.message });
   }
+});
+
+app.get('/api/narration/:postId/job-status', adminAuth, (req, res) => {
+  const { postId } = req.params;
+  const voiceOverride = req.query.voice || null;
+  const jobKey = postId + (voiceOverride || '');
+  const job = jobs[jobKey];
+  if (!job) return res.json({ status: 'not_found' });
+  res.json(job);
 });
 
 app.get('/api/narration/:postId/download', async (req, res) => {

@@ -386,6 +386,31 @@ function renderGen(slug){
     });
   };
 
+  // Save description to localStorage
+  var descSaveBtn=document.createElement('button');descSaveBtn.className='btn btn-primary btn-sm';descSaveBtn.textContent='Save';descSaveBtn.style.display='none';
+  descActions.insertBefore(descSaveBtn,descCopyBtn);
+
+  descSaveBtn.onclick=function(){
+    localStorage.setItem('np_desc_'+slug,descArea.value);
+    descMsg.textContent='Saved';descMsg.style.color='rgba(169,221,211,0.7)';
+    setTimeout(function(){descMsg.textContent=''},2000);
+  };
+
+  // Show save/copy buttons whenever textarea has content
+  descArea.oninput=function(){
+    var hasContent=descArea.value.trim().length>0;
+    descSaveBtn.style.display=hasContent?'inline-block':'none';
+    descCopyBtn.style.display=hasContent?'inline-block':'none';
+  };
+
+  // Load saved description on render
+  var saved=localStorage.getItem('np_desc_'+slug);
+  if(saved){
+    descArea.value=saved;
+    descSaveBtn.style.display='inline-block';
+    descCopyBtn.style.display='inline-block';
+  }
+
   descGenBtn.onclick=function(){
     descGenBtn.disabled=true;descGenBtn.textContent='Generating...';descMsg.textContent='';
     fetch(API+'/api/generate-description',{method:'POST',headers:authHeaders(),body:JSON.stringify({slug:slug})})
@@ -393,6 +418,7 @@ function renderGen(slug){
     .then(function(d){
       if(d.error){descMsg.textContent='Error: '+d.error;descMsg.style.color='rgba(240,100,100,0.7)';return}
       descArea.value=d.description||'';
+      descSaveBtn.style.display='inline-block';
       descCopyBtn.style.display='inline-block';
     })
     .catch(function(err){descMsg.textContent='Error: '+err.message;descMsg.style.color='rgba(240,100,100,0.7)'})
@@ -449,26 +475,82 @@ function startGen(slug,voice,card,btn){
   fetch(API+'/api/narration/'+slug+'/auto-generate'+voiceParam,{signal:controller.signal})
   .then(function(r){return r.json()})
   .then(function(d){
-    clearInterval(progInterval);
     if(d.error){
+      clearInterval(progInterval);
       status.textContent='Error: '+d.error;
       bar.className='progress-bar error';bar.style.width='100%';
       prog.classList.add('error');
-    } else {
+      stopBtn.remove();
+      document.querySelectorAll('.voice-card .btn-primary').forEach(function(b){b.disabled=false});
+      card.classList.remove('generating');btn.textContent='Generate';
+      delete abortControllers[slug];
+      return;
+    }
+
+    // If already cached, done immediately
+    if(d.status==='already_cached'||d.url){
+      clearInterval(progInterval);
       status.textContent='Generated successfully';
-      bar.style.width='100%';
-      prog.classList.add('done');
-      log.textContent=(d.textLength||'?')+' chars · voice: '+voice.label;
-      var audio=document.createElement('audio');audio.controls=true;audio.src=d.url;
-      prog.appendChild(audio);
+      bar.style.width='100%';prog.classList.add('done');
+      log.textContent='voice: '+voice.label;
+      var audio=document.createElement('audio');audio.controls=true;audio.src=d.url;prog.appendChild(audio);
       var dlBtn=document.createElement('button');dlBtn.className='btn btn-ghost btn-sm';dlBtn.textContent='Download';dlBtn.style.marginTop='8px';
       dlBtn.onclick=function(){window.location.href=API+'/api/narration/'+slug+'/download'};
       controls.appendChild(dlBtn);
-      loadVersions(slug);
-      statusMap[slug]='ok';
-      updateStats();
+      stopBtn.remove();
+      loadVersions(slug);statusMap[slug]='ok';updateStats();
+      document.querySelectorAll('.voice-card .btn-primary').forEach(function(b){b.disabled=false});
+      card.classList.remove('generating');btn.textContent='Generate';
+      delete abortControllers[slug];
+      return;
     }
-    stopBtn.remove();
+
+    // Job started — begin polling
+    var jobKey=d.jobKey;
+    var pollCount=0;
+    var maxPolls=120; // 10 minutes at 5s intervals
+    var pollInterval=setInterval(function(){
+      if(cancelled){clearInterval(pollInterval);return}
+      pollCount++;
+      if(pollCount>maxPolls){
+        clearInterval(pollInterval);clearInterval(progInterval);
+        status.textContent='Timed out waiting for generation';
+        bar.className='progress-bar error';bar.style.width='100%';
+        prog.classList.add('error');stopBtn.remove();
+        document.querySelectorAll('.voice-card .btn-primary').forEach(function(b){b.disabled=false});
+        card.classList.remove('generating');btn.textContent='Generate';
+        delete abortControllers[slug];
+        return;
+      }
+      fetch(API+'/api/narration/'+slug+'/job-status?token='+encodeURIComponent(TOKEN)+'&voice='+encodeURIComponent(voice.id))
+      .then(function(r){return r.json()})
+      .then(function(job){
+        if(job.status==='running'){
+          log.textContent='Working... ('+Math.round(pollCount*5)+'s elapsed)';
+          return;
+        }
+        clearInterval(pollInterval);clearInterval(progInterval);
+        if(job.status==='error'){
+          status.textContent='Error: '+job.error;
+          bar.className='progress-bar error';bar.style.width='100%';
+          prog.classList.add('error');
+        } else {
+          status.textContent='Generated successfully';
+          bar.style.width='100%';prog.classList.add('done');
+          log.textContent=(job.textLength||'?')+' chars · voice: '+voice.label;
+          var audio=document.createElement('audio');audio.controls=true;audio.src=job.url;prog.appendChild(audio);
+          var dlBtn=document.createElement('button');dlBtn.className='btn btn-ghost btn-sm';dlBtn.textContent='Download';dlBtn.style.marginTop='8px';
+          dlBtn.onclick=function(){window.location.href=API+'/api/narration/'+slug+'/download'};
+          controls.appendChild(dlBtn);
+          loadVersions(slug);statusMap[slug]='ok';updateStats();
+        }
+        stopBtn.remove();
+        document.querySelectorAll('.voice-card .btn-primary').forEach(function(b){b.disabled=false});
+        card.classList.remove('generating');btn.textContent='Generate';
+        delete abortControllers[slug];
+      })
+      .catch(function(){/* ignore poll errors, keep trying */});
+    },5000);
   })
   .catch(function(err){
     clearInterval(progInterval);
@@ -476,11 +558,8 @@ function startGen(slug,voice,card,btn){
       status.textContent='Error: '+err.message;
       bar.className='progress-bar error';bar.style.width='100%';
     }
-  })
-  .finally(function(){
     document.querySelectorAll('.voice-card .btn-primary').forEach(function(b){b.disabled=false});
-    card.classList.remove('generating');
-    btn.textContent='Generate';
+    card.classList.remove('generating');btn.textContent='Generate';
     delete abortControllers[slug];
   });
 }
