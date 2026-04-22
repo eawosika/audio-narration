@@ -435,13 +435,17 @@ async function fetchArticleText(slug) {
   const html = await res.text();
 
   let cleaned = html
+    // Strip all w-embed blocks (Webflow HTML embed wrapper — covers narration player, readerbot, etc.)
+    .replace(/<div[^>]*class="[^"]*w-embed[^"]*"[^>]*>[\s\S]*?<\/div>\s*<\/div>/gi, '')
+    // Belt-and-suspenders: also strip by known IDs
+    .replace(/<div[^>]*id="narration-player"[\s\S]*?(?=<(?:p|h[1-6]|ul|ol|blockquote))/gi, '')
     .replace(/<aside[^>]*id="panel"[^>]*>[\s\S]*?<\/aside>/gi, '')
     .replace(/<button[^>]*id="openBtn"[^>]*>[\s\S]*?<\/button>/gi, '')
     .replace(/<div[^>]*id="miniCard"[^>]*>[\s\S]*?<\/div>/gi, '')
     .replace(/<button[^>]*id="mobileAskBtn"[^>]*>[\s\S]*?<\/button>/gi, '')
-    .replace(/<div[^>]*id="narration-player"[^>]*>[\s\S]*?<\/div>\s*<\/div>/gi, '')
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<audio[^>]*>[\s\S]*?<\/audio>/gi, '')
     .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
     .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
     .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
@@ -482,7 +486,12 @@ async function fetchArticleText(slug) {
       .replace(/Ask about this article/gi, '')
       .replace(/Ask AI/gi, '')
       .replace(/Listen to this article/gi, '')
+      .replace(/Restart from beginning/gi, '')
+      .replace(/Play on Spotify/gi, '')
+      .replace(/Download article audio/gi, '')
+      .replace(/Share audio/gi, '')
       .replace(/\d+:\d+\s*\/\s*\d+:\d+/g, '')
+      .replace(/\d+\s*times/gi, '')
       .replace(/\s+/g, ' ')
       .trim();
   }
