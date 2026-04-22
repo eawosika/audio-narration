@@ -323,6 +323,54 @@ function renderGen(slug){
   });
   el.appendChild(voiceSec);
 
+  // Extracted text preview
+  var extractSec=document.createElement('div');extractSec.style.cssText='margin-bottom:24px';
+  var extractHeader=document.createElement('div');extractHeader.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:0';
+  var extractToggle=document.createElement('button');
+  extractToggle.style.cssText='background:none;border:none;color:rgba(240,238,234,0.3);font-size:11px;cursor:pointer;font-family:inherit;padding:0;display:flex;align-items:center;gap:6px;transition:color 0.15s';
+  extractToggle.innerHTML='<svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" id="extract-chevron-'+slug+'" style="transition:transform 0.15s"><path d="M2 3.5l3 3 3-3"/></svg> Preview extracted text';
+  extractToggle.onmouseover=function(){this.style.color='rgba(240,238,234,0.6)'};
+  extractToggle.onmouseout=function(){this.style.color='rgba(240,238,234,0.3)'};
+  var extractBody=document.createElement('div');extractBody.style.cssText='display:none;margin-top:10px';
+  var extractArea=document.createElement('div');
+  extractArea.style.cssText='background:#111;border:1px solid rgba(240,238,234,0.06);border-radius:6px;padding:14px 16px;font-size:12px;line-height:1.7;color:rgba(240,238,234,0.6);max-height:300px;overflow-y:auto;white-space:pre-wrap;font-family:ui-monospace,monospace';
+  extractArea.textContent='Click to load...';
+  var extractActions=document.createElement('div');extractActions.style.cssText='display:flex;gap:8px;margin-top:8px';
+  var extractCopyBtn=document.createElement('button');extractCopyBtn.className='btn btn-ghost btn-sm';extractCopyBtn.textContent='Copy text';extractCopyBtn.style.display='none';
+  var extractMsg=document.createElement('div');extractMsg.style.cssText='font-size:11px;color:rgba(169,221,211,0.6);align-self:center';
+  extractActions.appendChild(extractCopyBtn);extractActions.appendChild(extractMsg);
+  extractBody.appendChild(extractArea);extractBody.appendChild(extractActions);
+  extractHeader.appendChild(extractToggle);
+  extractSec.appendChild(extractHeader);extractSec.appendChild(extractBody);
+  el.appendChild(extractSec);
+
+  var extractLoaded=false;
+  extractToggle.onclick=function(){
+    var open=extractBody.style.display==='block';
+    extractBody.style.display=open?'none':'block';
+    document.getElementById('extract-chevron-'+slug).style.transform=open?'':'rotate(180deg)';
+    if(!open&&!extractLoaded){
+      extractLoaded=true;
+      extractArea.textContent='Loading...';
+      extractMsg.textContent='';
+      fetch(API+'/api/debug/extract/'+slug+'?token='+encodeURIComponent(TOKEN))
+      .then(function(r){return r.json()})
+      .then(function(d){
+        if(d.error){extractArea.textContent='Error: '+d.error;return;}
+        var txt=d.full||d.preview||'';
+        extractArea.textContent=txt;
+        extractMsg.textContent=d.textLength+' chars';
+        extractCopyBtn.style.display='inline-block';
+        extractCopyBtn.onclick=function(){
+          navigator.clipboard.writeText(txt).then(function(){
+            extractMsg.textContent='Copied!';setTimeout(function(){extractMsg.textContent=d.textLength+' chars';},2000);
+          });
+        };
+      })
+      .catch(function(e){extractArea.textContent='Failed to load: '+e.message;});
+    }
+  };
+
   // Versions section
   var verSec=document.createElement('div');verSec.className='gen-section versions-section';
   var verLabel=document.createElement('div');verLabel.className='gen-section-label';verLabel.textContent='Versions';
