@@ -435,8 +435,9 @@ async function fetchArticleText(slug) {
   const html = await res.text();
 
   let cleaned = html
-    // Strip known embed IDs first — these are the narration player and readerbot
-    .replace(/<div[^>]*id="narration-player"[^>]*>[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/gi, '')
+    // Strip the narration player embed — use greedy match up to the first real paragraph after it
+    .replace(/<div[^>]*id="narration-player"[^>]*>[\s\S]*?(?=<p\s)/gi, '')
+    // Strip other known UI blocks
     .replace(/<aside[^>]*id="panel"[^>]*>[\s\S]*?<\/aside>/gi, '')
     .replace(/<button[^>]*id="openBtn"[^>]*>[\s\S]*?<\/button>/gi, '')
     .replace(/<div[^>]*id="miniCard"[^>]*>[\s\S]*?<\/div>/gi, '')
