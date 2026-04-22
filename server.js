@@ -1106,6 +1106,52 @@ app.get('/api/debug/extract/:postId', adminAuth, async (req, res) => {
   }
 });
 
+app.get('/api/admin/disk', adminAuth, async (req, res) => {
+  try {
+    const audioFiles = await fs.readdir(AUDIO_DIR).catch(() => []);
+    const chunkFiles = await fs.readdir(CHUNKS_DIR).catch(() => []);
+
+    let audioSize = 0, chunkSize = 0;
+    for (const f of audioFiles.filter(f => f.endsWith('.mp3'))) {
+      const s = await fs.stat(path.join(AUDIO_DIR, f)).catch(() => null);
+      if (s) audioSize += s.size;
+    }
+    for (const f of chunkFiles) {
+      const s = await fs.stat(path.join(CHUNKS_DIR, f)).catch(() => null);
+      if (s) chunkSize += s.size;
+    }
+
+    const fmt = b => b > 1048576 ? (b/1048576).toFixed(1)+'MB' : (b/1024).toFixed(0)+'KB';
+    res.json({
+      audioFiles: audioFiles.filter(f => f.endsWith('.mp3')).length,
+      audioSize: fmt(audioSize),
+      chunkFiles: chunkFiles.length,
+      chunkSize: fmt(chunkSize),
+      totalSize: fmt(audioSize + chunkSize)
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/cleanup-chunks', adminAuth, async (req, res) => {
+  try {
+    const chunkFiles = await fs.readdir(CHUNKS_DIR).catch(() => []);
+    let deleted = 0, freed = 0;
+    for (const f of chunkFiles) {
+      const fp = path.join(CHUNKS_DIR, f);
+      const s = await fs.stat(fp).catch(() => null);
+      if (s) freed += s.size;
+      await fs.unlink(fp).catch(() => {});
+      deleted++;
+    }
+    const fmt = b => b > 1048576 ? (b/1048576).toFixed(1)+'MB' : (b/1024).toFixed(0)+'KB';
+    res.json({ deleted, freed: fmt(freed) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 const PORT = process.env.PORT || 3001;
