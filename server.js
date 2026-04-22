@@ -435,15 +435,14 @@ async function fetchArticleText(slug) {
   const html = await res.text();
 
   let cleaned = html
-    // Strip the narration player embed — use greedy match up to the first real paragraph after it
-    .replace(/<div[^>]*id="narration-player"[^>]*>[\s\S]*?(?=<p\s)/gi, '')
-    // Strip other known UI blocks
+    // Strip the narration player — it sits between summary and article body as a w-embed block
+    // Target the w-embed wrapper that Webflow uses for HTML embeds
+    .replace(/<div[^>]*class="[^"]*w-embed[^"]*"[^>]*>[\s\S]*?<\/div>(\s*<\/div>)+/gi, '')
+    // Also strip by known IDs as belt-and-suspenders
     .replace(/<aside[^>]*id="panel"[^>]*>[\s\S]*?<\/aside>/gi, '')
     .replace(/<button[^>]*id="openBtn"[^>]*>[\s\S]*?<\/button>/gi, '')
     .replace(/<div[^>]*id="miniCard"[^>]*>[\s\S]*?<\/div>/gi, '')
     .replace(/<button[^>]*id="mobileAskBtn"[^>]*>[\s\S]*?<\/button>/gi, '')
-    .replace(/<div[^>]*id="np-mini-player"[^>]*>[\s\S]*?<\/div>/gi, '')
-    .replace(/<div[^>]*id="np-mobile-bar"[^>]*>[\s\S]*?<\/div>/gi, '')
     .replace(/<audio[^>]*>[\s\S]*?<\/audio>/gi, '')
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
