@@ -154,12 +154,27 @@ function chunkText(text, maxChars = MAX_CHUNK_CHARS) {
 
 function cleanTextForSpeech(text) {
   return text
+    // ── HTML entities ──
+    .replace(/&#x27;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+
     // ── Footnotes ──
-    // Remove footnote reference numbers like [1], [2] and superscript markers
+    // Remove footnote reference numbers like [1], [2] and inline footnote markers like " 1 " or " 2 "
     .replace(/\[\d+\]/g, '')
     .replace(/\u00B9/g, '').replace(/\u00B2/g, '').replace(/\u00B3/g, '')
+    // Remove footnote back-arrow and trailing footnote sections
+    .replace(/↩/g, '')
+    .replace(/\u21A9/g, '')
     // Remove entire footnotes section (everything after "Footnotes" heading)
     .replace(/Footnotes[\s\S]*$/i, '')
+    // Strip trailing inline footnote numbers like "(Rex) 1" → "(Rex)"
+    .replace(/\)\s+\d+\b/g, ')')
+    .replace(/\b(A\.P\.I\.s?|API)\s+\d+\b/g, '$1')
 
     // ── Section headers as pauses ──
     // Add a pause before headings so narrator breathes between sections
@@ -205,15 +220,71 @@ function cleanTextForSpeech(text) {
     })
 
     // ── Mathematical notation ──
-    // Subscript unicode characters to spoken form
+
+    // Greek letters → spoken names
+    .replace(/Σ/g, 'sum of ').replace(/σ/g, 'sigma ')
+    .replace(/λ/g, 'lambda ').replace(/Λ/g, 'Lambda ')
+    .replace(/α/g, 'alpha ').replace(/β/g, 'beta ')
+    .replace(/γ/g, 'gamma ').replace(/Γ/g, 'Gamma ')
+    .replace(/δ/g, 'delta ').replace(/Δ/g, 'Delta ')
+    .replace(/ε/g, 'epsilon ').replace(/ζ/g, 'zeta ')
+    .replace(/θ/g, 'theta ').replace(/Θ/g, 'Theta ')
+    .replace(/μ/g, 'mu ').replace(/π/g, 'pi ')
+    .replace(/φ/g, 'phi ').replace(/Φ/g, 'Phi ')
+    .replace(/ψ/g, 'psi ').replace(/Ψ/g, 'Psi ')
+    .replace(/ω/g, 'omega ').replace(/Ω/g, 'Omega ')
+
+    // Mathematical italic/bold Unicode letters → ASCII equivalents
+    // Covers U+1D400–1D7FF (math bold, italic, bold-italic, script, fraktur, etc.)
+    .replace(/[\u{1D400}-\u{1D7FF}]/gu, function(c) {
+      var cp = c.codePointAt(0);
+      // Bold capital A-Z
+      if (cp >= 0x1D400 && cp <= 0x1D419) return String.fromCharCode(cp - 0x1D400 + 65);
+      // Bold lowercase a-z
+      if (cp >= 0x1D41A && cp <= 0x1D433) return String.fromCharCode(cp - 0x1D41A + 97);
+      // Italic capital A-Z (skipping h at 0x1D455)
+      if (cp >= 0x1D434 && cp <= 0x1D44D) return String.fromCharCode(cp - 0x1D434 + 65);
+      // Italic lowercase a-z
+      if (cp >= 0x1D44E && cp <= 0x1D467) return String.fromCharCode(cp - 0x1D44E + 97);
+      // Bold italic capital A-Z
+      if (cp >= 0x1D468 && cp <= 0x1D481) return String.fromCharCode(cp - 0x1D468 + 65);
+      // Bold italic lowercase a-z
+      if (cp >= 0x1D482 && cp <= 0x1D49B) return String.fromCharCode(cp - 0x1D482 + 97);
+      // Script capital A-Z
+      if (cp >= 0x1D49C && cp <= 0x1D4B5) return String.fromCharCode(cp - 0x1D49C + 65);
+      // Script lowercase a-z
+      if (cp >= 0x1D4B6 && cp <= 0x1D4CF) return String.fromCharCode(cp - 0x1D4B6 + 97);
+      // Sans-serif bold capital A-Z
+      if (cp >= 0x1D5D4 && cp <= 0x1D5ED) return String.fromCharCode(cp - 0x1D5D4 + 65);
+      // Sans-serif bold lowercase a-z
+      if (cp >= 0x1D5EE && cp <= 0x1D607) return String.fromCharCode(cp - 0x1D5EE + 97);
+      // Bold digits 0-9
+      if (cp >= 0x1D7CE && cp <= 0x1D7D7) return String.fromCharCode(cp - 0x1D7CE + 48);
+      return '';
+    })
+
+    // Superscript letters (e.g. gˢ → g to the s)
+    .replace(/[ᵃᵇᶜᵈᵉᶠᵍʰⁱʲᵏˡᵐⁿᵒᵖʳˢᵗᵘᵛʷˣʸᶻ]/g, function(c) {
+      var map = {'ᵃ':'a','ᵇ':'b','ᶜ':'c','ᵈ':'d','ᵉ':'e','ᶠ':'f','ᵍ':'g','ʰ':'h','ⁱ':'i','ʲ':'j','ᵏ':'k','ˡ':'l','ᵐ':'m','ⁿ':'n','ᵒ':'o','ᵖ':'p','ʳ':'r','ˢ':'s','ᵗ':'t','ᵘ':'u','ᵛ':'v','ʷ':'w','ˣ':'x','ʸ':'y','ᶻ':'z'};
+      return ' to the ' + (map[c] || '');
+    })
+
+    // Subscript digits 0-9
     .replace(/[\u2080-\u2089]/g, function(c) {
       return ' sub ' + (c.charCodeAt(0) - 0x2080);
     })
-    // Superscript unicode characters
+    // Subscript letters (ᵢ, ₖ, ₙ, ₜ etc.)
+    .replace(/[ᵢⱼₖₗₘₙₒₚᵣₛₜᵤᵥ]/g, function(c) {
+      var map = {'ᵢ':'i','ⱼ':'j','ₖ':'k','ₗ':'l','ₘ':'m','ₙ':'n','ₒ':'o','ₚ':'p','ᵣ':'r','ₛ':'s','ₜ':'t','ᵤ':'u','ᵥ':'v'};
+      return ' sub ' + (map[c] || '');
+    })
+
+    // Superscript digits
     .replace(/[\u2070\u00B9\u00B2\u00B3\u2074-\u2079]/g, function(c) {
       var map = {'\u2070':'0','\u00B9':'1','\u00B2':'2','\u00B3':'3','\u2074':'4','\u2075':'5','\u2076':'6','\u2077':'7','\u2078':'8','\u2079':'9'};
       return ' to the power of ' + (map[c] || '');
     })
+
     // Common math symbols
     .replace(/\u2264/g, ' less than or equal to ')
     .replace(/\u2265/g, ' greater than or equal to ')
@@ -225,13 +296,44 @@ function cleanTextForSpeech(text) {
     .replace(/\u2282/g, ' subset of ')
     .replace(/\u222A/g, ' union ')
     .replace(/\u2229/g, ' intersection ')
-    // Italic math letters (common in formal CS/math writing)
-    .replace(/\u{1D434}/gu, 'E').replace(/\u{1D456}/gu, 'i')
-    // Spoken math: "2.0x" becomes "2.0 times", "E_i" becomes "E sub i"
+    .replace(/\u2211/g, ' sum of ')
+    .replace(/\u220F/g, ' product of ')
+    .replace(/\u2202/g, ' partial ')
+    .replace(/\u222B/g, ' integral of ')
+    .replace(/[·•]/g, ' times ')
+    .replace(/×/g, ' times ')
+    .replace(/÷/g, ' divided by ')
+    .replace(/≈/g, ' approximately ')
+    .replace(/±/g, ' plus or minus ')
+    .replace(/→/g, ' to ')
+    .replace(/←/g, ' from ')
+    .replace(/⇒/g, ' implies ')
+    .replace(/⟹/g, ' implies ')
+
+    // Letterlike symbols (ℎ = Planck h, ℓ = script l, etc.)
+    .replace(/\u210E/g, 'h')
+    .replace(/\u2113/g, 'l')
+    .replace(/\u211C/g, 'R')
+    .replace(/\u2111/g, 'I')
+
+    // Subscript plus/minus for expressions like Eᵢ₊₁
+    .replace(/₊/g, ' plus ')
+    .replace(/₋/g, ' minus ')
+
+    // Function notation: f(x) → f of x, f(0) → f of 0
+    .replace(/\b([a-zA-Z])\(([a-zA-Z0-9])\)/g, '$1 of $2')
+    // Polynomial ellipsis: "a₀ + a₁x + ... + aₜ₋₁xₜ⁻¹" — dots handled separately
+    .replace(/\.\.\./g, ' and so on ')
+
+    // Spoken math: "2.0x" becomes "2.0 times" (only when preceded by a digit)
     .replace(/(\d+\.?\d*)x\b/g, '$1 times')
+    // Underscore notation: E_i → E sub i
     .replace(/([A-Za-z])_([A-Za-z0-9])/g, '$1 sub $2')
+    // Caret notation: g^s → g to the s
     .replace(/([A-Za-z])\^([A-Za-z0-9])/g, '$1 to the $2')
-    // Epoch notation: "epoch i" and "epoch i+1"
+    // Threshold notation: t-of-n → t of n
+    .replace(/(\d+)-of-(\d+)/g, '$1 of $2')
+    // Epoch notation
     .replace(/epoch\s*(\d+)\s*\+\s*(\d+)/gi, 'epoch $1 plus $2')
 
     // ── URLs ──
@@ -248,10 +350,20 @@ function cleanTextForSpeech(text) {
     // ── Special characters ──
     .replace(/[│┤├┐┘┌└─═]/g, '')
     .replace(/\.{3,}/g, '.')
+    // Strip emojis and decorative Unicode
+    .replace(/[\u{1F300}-\u{1F9FF}]/gu, '')
+    .replace(/[\u{2600}-\u{27BF}]/gu, '')
+    .replace(/✨|★|☆|♦|♠|♣|♥/g, '')
 
     // ── Percentage and currency ──
     .replace(/(\d+)\s*%/g, '$1 percent')
-    .replace(/\$(\d[\d,.]*)\s*(trillion|billion|million|thousand|[TBMK])\b/gi, '$1 $2 dollars')
+    // Handle ranges like "$1.8 to $2 trillion" → "1.8 to 2 trillion dollars"
+    .replace(/\$(\d[\d,.]*)\s*to\s*\$(\d[\d,.]*)\s*(trillion|billion|million|thousand)\b/gi, '$1 to $2 $3 dollars')
+    .replace(/\$(\d[\d,.]*)\s*T\b/gi, '$1 trillion dollars')
+    .replace(/\$(\d[\d,.]*)\s*B\b/gi, '$1 billion dollars')
+    .replace(/\$(\d[\d,.]*)\s*M\b/gi, '$1 million dollars')
+    .replace(/\$(\d[\d,.]*)\s*K\b/gi, '$1 thousand dollars')
+    .replace(/\$(\d[\d,.]*)\s*(trillion|billion|million|thousand)\b/gi, '$1 $2 dollars')
     .replace(/\$(\d[\d,.]*)/g, '$1 dollars')
 
     // ── Strip non-BMP unicode and unpaired surrogates ──
@@ -493,10 +605,11 @@ async function fetchArticleText(slug) {
       .replace(/Ask about this article/gi, '')
       .replace(/Ask AI/gi, '')
       .replace(/Preview on ElevenLabs/gi, '')
+      // Strip time displays only (0:00 format)
       .replace(/\d+:\d+\s*\/\s*\d+:\d+/g, '')
       .replace(/\b\d+:\d+\b/g, '')
-      .replace(/\b\d+\.?\d*\s*x\b/gi, '')
-      .replace(/\b\d+\.?\d*\s*times\b/gi, '')
+      // Strip speed button text only (standalone "1x", "1.5x" not preceded by numbers in context)
+      .replace(/(?<!\w)\d+\.?\d*x(?!\w)/gi, '')
       .replace(/\s+/g, ' ')
       .trim();
   }
