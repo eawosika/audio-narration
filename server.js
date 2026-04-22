@@ -1010,6 +1010,16 @@ Rules:
   }
 });
 
+app.get('/api/debug/extract/:postId', adminAuth, async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const text = await fetchArticleText(postId);
+    res.json({ textLength: text.length, preview: text.slice(0, 500), full: text });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 const PORT = process.env.PORT || 3001;
