@@ -749,20 +749,40 @@ app.get('/api/narration/:postId/delete', adminAuth, async (req, res) => {
     const files = await fs.readdir(AUDIO_DIR);
     const matches = files.filter(f => f.startsWith(`${postId}_`) && f.endsWith('.mp3'));
 
-    if (matches.length === 0) {
-      return res.json({ deleted: 0, message: 'No cached audio found for this post.' });
-    }
-
     for (const file of matches) {
       await fs.unlink(path.join(AUDIO_DIR, file));
     }
 
-    // Also clean up any leftover chunks
+    // Clean up chunks
     const chunkFiles = await fs.readdir(CHUNKS_DIR).catch(() => []);
     const chunkMatches = chunkFiles.filter(f => f.startsWith(`${postId}_`));
     for (const file of chunkMatches) {
       await fs.unlink(path.join(CHUNKS_DIR, file)).catch(() => {});
     }
+
+    // Clear active map entry
+    const activeMap = await loadActiveMap();
+    if (activeMap[postId]) {
+      delete activeMap[postId];
+      await saveActiveMap(activeMap);
+    }
+
+    // Clear voice meta entries for this slug
+    const voiceMeta = await loadVoiceMeta();
+    let voiceMetaChanged = false;
+    for (const filename of matches) {
+      if (voiceMeta[filename]) { delete voiceMeta[filename]; voiceMetaChanged = true; }
+    }
+    if (voiceMetaChanged) await saveVoiceMeta(voiceMeta);
+
+    // Clear persisted job entries for this slug
+    try {
+      let jobsFile = {};
+      try { jobsFile = JSON.parse(await fs.readFile(JOBS_PATH, 'utf8')); } catch {}
+      const jobKeys = Object.keys(jobsFile).filter(k => k.startsWith(postId));
+      for (const k of jobKeys) { delete jobsFile[k]; delete jobs[k]; }
+      await fs.writeFile(JOBS_PATH, JSON.stringify(jobsFile, null, 2));
+    } catch {}
 
     res.json({ deleted: matches.length, files: matches });
   } catch (err) {
