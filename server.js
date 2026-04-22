@@ -435,17 +435,9 @@ async function fetchArticleText(slug) {
   const html = await res.text();
 
   let cleaned = html
-    // Strip the narration player — it sits between summary and article body as a w-embed block
-    // Target the w-embed wrapper that Webflow uses for HTML embeds
-    .replace(/<div[^>]*class="[^"]*w-embed[^"]*"[^>]*>[\s\S]*?<\/div>(\s*<\/div>)+/gi, '')
-    // Also strip by known IDs as belt-and-suspenders
-    .replace(/<aside[^>]*id="panel"[^>]*>[\s\S]*?<\/aside>/gi, '')
-    .replace(/<button[^>]*id="openBtn"[^>]*>[\s\S]*?<\/button>/gi, '')
-    .replace(/<div[^>]*id="miniCard"[^>]*>[\s\S]*?<\/div>/gi, '')
-    .replace(/<button[^>]*id="mobileAskBtn"[^>]*>[\s\S]*?<\/button>/gi, '')
-    .replace(/<audio[^>]*>[\s\S]*?<\/audio>/gi, '')
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<audio[^>]*>[\s\S]*?<\/audio>/gi, '')
     .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
     .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
     .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
@@ -485,7 +477,28 @@ async function fetchArticleText(slug) {
       // Only keep if it looks like real content (more than 20 chars)
       if (inner.length > 20) contentTags.push(inner);
     }
-    text = contentTags.join(' ');
+    text = contentTags.join(' ')
+      // Final pass: strip any UI text that leaked through via p/span tags
+      .replace(/Listen to this article/gi, '')
+      .replace(/Play on Spotify/gi, '')
+      .replace(/Download article audio/gi, '')
+      .replace(/Share audio/gi, '')
+      .replace(/Restart from beginning/gi, '')
+      .replace(/Copy header link/gi, '')
+      .replace(/Copy link/gi, '')
+      .replace(/Explore this article with AI/gi, '')
+      .replace(/Rialo Readerbot/gi, '')
+      .replace(/Keep reading with AI/gi, '')
+      .replace(/Open Readerbot/gi, '')
+      .replace(/Ask about this article/gi, '')
+      .replace(/Ask AI/gi, '')
+      .replace(/Preview on ElevenLabs/gi, '')
+      .replace(/\d+:\d+\s*\/\s*\d+:\d+/g, '')
+      .replace(/\b\d+:\d+\b/g, '')
+      .replace(/\b\d+\.?\d*\s*x\b/gi, '')
+      .replace(/\b\d+\.?\d*\s*times\b/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   if (!text || text.length < 50) {
