@@ -129,7 +129,7 @@ app.post('/api/admin/auth', (req, res) => {
   }
 });
 
-// ── Helpers ─────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────
 
 function hashText(text) {
   return crypto.createHash('sha256').update(text).digest('hex').slice(0, 16);
@@ -164,19 +164,26 @@ function cleanTextForSpeech(text) {
     .replace(/&nbsp;/g, ' ')
 
     // ── Footnotes ──
+    // Remove footnote reference numbers like [1], [2] and inline footnote markers like " 1 " or " 2 "
     .replace(/\[\d+\]/g, '')
     .replace(/¹/g, '').replace(/²/g, '').replace(/³/g, '')
+    // Remove footnote back-arrow and trailing footnote sections
     .replace(/↩/g, '')
     .replace(/↩/g, '')
+    // Remove entire footnotes section (everything after "Footnotes" heading)
     .replace(/Footnotes[\s\S]*$/i, '')
+    // Strip trailing inline footnote numbers like "(Rex) 1" → "(Rex)"
     .replace(/\)\s+\d+\b/g, ')')
     .replace(/\b(A\.P\.I\.s?|API)\s+\d+\b/g, '$1')
 
     // ── Section headers as pauses ──
+    // Add a pause before headings so narrator breathes between sections
     .replace(/([.!?])\s*(#{1,6}\s)/g, '$1\n\n.\n\n$2')
+    // If headings appear as standalone lines, add pause
     .replace(/\n([A-Z][A-Za-z0-9 :,'\-]{5,80})\n/g, '\n\n.\n\n$1.\n\n')
 
     // ── Acronyms and abbreviations ──
+    // Spell out common technical/finance acronyms
     .replace(/\bEBITDA\b/g, 'E.B.I.T.D.A.')
     .replace(/\bBFT\b/g, 'B.F.T.')
     .replace(/\bSMR\b/g, 'S.M.R.')
@@ -202,14 +209,19 @@ function cleanTextForSpeech(text) {
     .replace(/\bPKI\b/g, 'P.K.I.')
     .replace(/\bBCRED\b/g, 'B.C.R.E.D.')
     .replace(/\bHLEND\b/g, 'H.L.E.N.D.')
+    // Generic: any remaining 2-4 letter all-caps words get spelled out
+    // (but skip common words like "IT", "OR", "AN", "AT", "IN", "ON", "TO", "DO", "IF", "IS", "OF", "SO", "UP", "US", "WE")
     .replace(/\b([A-Z]{2,4})\b/g, function(match) {
       var skip = ['IT','OR','AN','AT','IN','ON','TO','DO','IF','IS','OF','SO','UP','US','WE','NO','BY','BE','HE','ME','MY','OK','ATM','CEO','CFO','CTO'];
       if (skip.indexOf(match) !== -1) return match;
+      // Check if it's already been spelled out (contains periods)
       if (match.indexOf('.') !== -1) return match;
       return match.split('').join('.') + '.';
     })
 
     // ── Mathematical notation ──
+
+    // Greek letters → spoken names
     .replace(/Σ/g, 'sum of ').replace(/σ/g, 'sigma ')
     .replace(/λ/g, 'lambda ').replace(/Λ/g, 'Lambda ')
     .replace(/α/g, 'alpha ').replace(/β/g, 'beta ')
@@ -222,40 +234,58 @@ function cleanTextForSpeech(text) {
     .replace(/ψ/g, 'psi ').replace(/Ψ/g, 'Psi ')
     .replace(/ω/g, 'omega ').replace(/Ω/g, 'Omega ')
 
+    // Mathematical italic/bold Unicode letters → ASCII equivalents
+    // Covers U+1D400–1D7FF (math bold, italic, bold-italic, script, fraktur, etc.)
     .replace(/[\u{1D400}-\u{1D7FF}]/gu, function(c) {
       var cp = c.codePointAt(0);
+      // Bold capital A-Z
       if (cp >= 0x1D400 && cp <= 0x1D419) return String.fromCharCode(cp - 0x1D400 + 65);
+      // Bold lowercase a-z
       if (cp >= 0x1D41A && cp <= 0x1D433) return String.fromCharCode(cp - 0x1D41A + 97);
+      // Italic capital A-Z (skipping h at 0x1D455)
       if (cp >= 0x1D434 && cp <= 0x1D44D) return String.fromCharCode(cp - 0x1D434 + 65);
+      // Italic lowercase a-z
       if (cp >= 0x1D44E && cp <= 0x1D467) return String.fromCharCode(cp - 0x1D44E + 97);
+      // Bold italic capital A-Z
       if (cp >= 0x1D468 && cp <= 0x1D481) return String.fromCharCode(cp - 0x1D468 + 65);
+      // Bold italic lowercase a-z
       if (cp >= 0x1D482 && cp <= 0x1D49B) return String.fromCharCode(cp - 0x1D482 + 97);
+      // Script capital A-Z
       if (cp >= 0x1D49C && cp <= 0x1D4B5) return String.fromCharCode(cp - 0x1D49C + 65);
+      // Script lowercase a-z
       if (cp >= 0x1D4B6 && cp <= 0x1D4CF) return String.fromCharCode(cp - 0x1D4B6 + 97);
+      // Sans-serif bold capital A-Z
       if (cp >= 0x1D5D4 && cp <= 0x1D5ED) return String.fromCharCode(cp - 0x1D5D4 + 65);
+      // Sans-serif bold lowercase a-z
       if (cp >= 0x1D5EE && cp <= 0x1D607) return String.fromCharCode(cp - 0x1D5EE + 97);
+      // Bold digits 0-9
       if (cp >= 0x1D7CE && cp <= 0x1D7D7) return String.fromCharCode(cp - 0x1D7CE + 48);
       return '';
     })
 
+    // Superscript letters (e.g. gˢ → g to the s)
     .replace(/[ᵃᵇᶜᵈᵉᶠᵍʰⁱʲᵏˡᵐⁿᵒᵖʳˢᵗᵘᵛʷˣʸᶻ]/g, function(c) {
       var map = {'ᵃ':'a','ᵇ':'b','ᶜ':'c','ᵈ':'d','ᵉ':'e','ᶠ':'f','ᵍ':'g','ʰ':'h','ⁱ':'i','ʲ':'j','ᵏ':'k','ˡ':'l','ᵐ':'m','ⁿ':'n','ᵒ':'o','ᵖ':'p','ʳ':'r','ˢ':'s','ᵗ':'t','ᵘ':'u','ᵛ':'v','ʷ':'w','ˣ':'x','ʸ':'y','ᶻ':'z'};
       return ' to the ' + (map[c] || '');
     })
 
+    // Subscript digits 0-9
     .replace(/[₀-₉]/g, function(c) {
       return ' sub ' + (c.charCodeAt(0) - 0x2080);
     })
+    // Subscript letters (ᵢ, ⱼ, ₖ, ₗ, ₘ, ₙ, ₒ, ₚ, ᵣ, ₛ, ₜ, ᵤ, ᵥ)
     .replace(/[ᵢⱼₖₗₘₙₒₚᵣₛₜᵤᵥ]/g, function(c) {
       var map = {'ᵢ':'i','ⱼ':'j','ₖ':'k','ₗ':'l','ₘ':'m','ₙ':'n','ₒ':'o','ₚ':'p','ᵣ':'r','ₛ':'s','ₜ':'t','ᵤ':'u','ᵥ':'v'};
       return ' sub ' + (map[c] || '');
     })
 
+    // Superscript digits
     .replace(/[⁰¹²³⁴-⁹]/g, function(c) {
       var map = {'⁰':'0','¹':'1','²':'2','³':'3','⁴':'4','⁵':'5','⁶':'6','⁷':'7','⁸':'8','⁹':'9'};
       return ' to the power of ' + (map[c] || '');
     })
 
+    // Common math symbols
     .replace(/≤/g, ' less than or equal to ')
     .replace(/≥/g, ' greater than or equal to ')
     .replace(/≠/g, ' not equal to ')
@@ -280,25 +310,35 @@ function cleanTextForSpeech(text) {
     .replace(/⇒/g, ' implies ')
     .replace(/⟹/g, ' implies ')
 
+    // Letterlike symbols (ℎ = Planck h, ℓ = script l, etc.)
     .replace(/ℎ/g, 'h')
     .replace(/ℓ/g, 'l')
     .replace(/ℜ/g, 'R')
     .replace(/ℑ/g, 'I')
 
+    // Subscript plus/minus for expressions like Eᵢ₊₁
     .replace(/₊/g, ' plus ')
     .replace(/₋/g, ' minus ')
 
+    // Function notation: f(x) → f of x, f(0) → f of 0
     .replace(/\b([a-zA-Z])\(([a-zA-Z0-9])\)/g, '$1 of $2')
+    // Polynomial ellipsis: "a₀ + a₁x + ... + aₜ₋₁xₜ⁻¹" — dots handled separately
     .replace(/\.\.\./g, ' and so on ')
 
+    // Spoken math: "2.0x" becomes "2.0 times" (only when preceded by a digit)
     .replace(/(\d+\.?\d*)x\b/g, '$1 times')
+    // Underscore notation: E_i → E sub i
     .replace(/([A-Za-z])_([A-Za-z0-9])/g, '$1 sub $2')
+    // Caret notation: g^s → g to the s
     .replace(/([A-Za-z])\^([A-Za-z0-9])/g, '$1 to the $2')
+    // Threshold notation: t-of-n → t of n
     .replace(/(\d+)-of-(\d+)/g, '$1 of $2')
+    // Epoch notation
     .replace(/epoch\s*(\d+)\s*\+\s*(\d+)/gi, 'epoch $1 plus $2')
 
     // ── URLs ──
     .replace(/https?:\/\/[^\s)]+/g, '')
+    // Markdown links: keep text, drop URL
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
 
     // ── Code and markup ──
@@ -310,12 +350,14 @@ function cleanTextForSpeech(text) {
     // ── Special characters ──
     .replace(/[│┤├┐┘┌└─═]/g, '')
     .replace(/\.{3,}/g, '.')
+    // Strip emojis and decorative Unicode
     .replace(/[\u{1F300}-\u{1F9FF}]/gu, '')
     .replace(/[\u{2600}-\u{27BF}]/gu, '')
     .replace(/✨|★|☆|♦|♠|♣|♥/g, '')
 
     // ── Percentage and currency ──
     .replace(/(\d+)\s*%/g, '$1 percent')
+    // Handle ranges like "$1.8 to $2 trillion" → "1.8 to 2 trillion dollars"
     .replace(/\$(\d[\d,.]*)\s*to\s*\$(\d[\d,.]*)\s*(trillion|billion|million|thousand)\b/gi, '$1 to $2 $3 dollars')
     .replace(/\$(\d[\d,.]*)\s*T\b/gi, '$1 trillion dollars')
     .replace(/\$(\d[\d,.]*)\s*B\b/gi, '$1 billion dollars')
@@ -323,11 +365,13 @@ function cleanTextForSpeech(text) {
     .replace(/\$(\d[\d,.]*)\s*K\b/gi, '$1 thousand dollars')
     .replace(/\$(\d[\d,.]*)\s*(trillion|billion|million|thousand)\b/gi, '$1 $2 dollars')
     .replace(/\$(\d[\d,.]*)/g, '$1 dollars')
+    // Fix "150. dollars" → "150 dollars" (period before dollars from sentence boundary)
     .replace(/(\d+)\.\s+dollars/g, '$1 dollars')
 
     // ── Strip non-BMP unicode and unpaired surrogates ──
     .replace(/[\uD800-\uDFFF]/g, '')
     .replace(/[^\x00-\x7F\xA0-\xFFĀ-￿]/g, '')
+    // Bold/italic math unicode to ASCII
     .replace(/[\u{1D400}-\u{1D7FF}]/gu, function(c) {
       var cp = c.codePointAt(0);
       if (cp >= 0x1D400 && cp <= 0x1D419) return String.fromCharCode(cp - 0x1D400 + 65);
@@ -372,7 +416,7 @@ async function generateChunkAudio(text, voice, retries = 3) {
     } catch (err) {
       lastErr = err;
       if (attempt < retries) {
-        const delay = attempt * 3000;
+        const delay = attempt * 3000; // 3s, 6s backoff
         console.warn(`  Chunk attempt ${attempt} failed, retrying in ${delay/1000}s: ${err.message}`);
         await new Promise(r => setTimeout(r, delay));
       }
@@ -422,11 +466,13 @@ async function fetchArticleMetadata(slug) {
   let summary = '';
   let imageUrl = '';
 
+  // Extract title from h1
   const titleMatch = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
   if (titleMatch) {
     title = titleMatch[1].replace(/<[^>]+>/g, '').trim();
   }
 
+  // Extract summary - text after "Summary" heading
   const summaryMatch = html.match(/Summary<\/[^>]+>([\s\S]*?)(?=<(?:h[1-6]|div[^>]*class="[^"]*blog-content))/i);
   if (summaryMatch) {
     summary = summaryMatch[1]
@@ -437,9 +483,11 @@ async function fetchArticleMetadata(slug) {
       .trim();
   }
 
+  // Extract featured image - first large image in the post content area
   const imageMatches = html.matchAll(/<img[^>]*src="(https:\/\/cdn\.prod\.website-files\.com\/6883572e6ebf68cfe676dd77\/[^"]+)"[^>]*>/gi);
   for (const m of imageMatches) {
     const src = m[1];
+    // Skip small icons and logos
     if (!src.includes('logo') && !src.includes('close') && !src.includes('discord') && !src.includes('telegram') && !src.includes('Vector')) {
       imageUrl = src;
       break;
@@ -465,6 +513,7 @@ async function tagMp3(filepath, metadata) {
       }]
     };
 
+    // Download and embed the featured image as cover art
     if (metadata.imageUrl) {
       try {
         const imgRes = await fetch(metadata.imageUrl);
@@ -490,6 +539,7 @@ async function tagMp3(filepath, metadata) {
     NodeID3.write(tags, filepath);
     console.log(`ID3 tags written for: ${metadata.title || filepath}`);
   } catch (err) {
+    // Don't fail the whole process if tagging fails
     console.error('Failed to write ID3 tags:', err.message);
   }
 }
@@ -526,6 +576,8 @@ async function fetchArticleText(slug) {
       if (endMatch > 0) { content = content.slice(0, endMatch); break; }
     }
 
+    // Whitelist approach: only extract text from content tags, ignore everything else
+    // This is immune to UI text leaking from embeds, buttons, labels, etc.
     const contentTags = [];
     const tagPattern = /<(p|h[1-6]|li|blockquote)[^>]*>([\s\S]*?)<\/\1>/gi;
     let tagMatch;
@@ -540,9 +592,11 @@ async function fetchArticleText(slug) {
         .replace(/&#39;/g, "'")
         .replace(/\s+/g, ' ')
         .trim();
+      // Only keep if it looks like real content (more than 20 chars)
       if (inner.length > 20) contentTags.push(inner);
     }
     text = contentTags.join(' ')
+      // Final pass: strip any UI text that leaked through via p/span tags
       .replace(/Listen to this article/gi, '')
       .replace(/Play on Spotify/gi, '')
       .replace(/Download article audio/gi, '')
@@ -557,8 +611,10 @@ async function fetchArticleText(slug) {
       .replace(/Ask about this article/gi, '')
       .replace(/Ask AI/gi, '')
       .replace(/Preview on ElevenLabs/gi, '')
+      // Strip time displays only (0:00 format)
       .replace(/\d+:\d+\s*\/\s*\d+:\d+/g, '')
       .replace(/\b\d+:\d+\b/g, '')
+      // Strip speed button text only (standalone "1x", "1.5x" not preceded by numbers in context)
       .replace(/(?<!\w)\d+\.?\d*x(?!\w)/gi, '')
       .replace(/\s+/g, ' ')
       .trim();
@@ -583,6 +639,7 @@ async function fetchArticleText(slug) {
     throw new Error('Could not extract meaningful article text from the page.');
   }
 
+  // Clean text for speech before returning
   text = cleanTextForSpeech(text);
 
   return text.slice(0, 50000);
@@ -603,32 +660,45 @@ async function generateAudio(postId, text, metadata = {}, voiceOverride = null, 
 
   if (onProgress) onProgress(0, chunks.length);
 
+  // Generate chunks with concurrency limit to stay under ElevenLabs 5-concurrent cap
+  const CONCURRENCY = 3;
+  const audioBuffers = new Array(chunks.length);
   let completed = 0;
-  const audioBuffers = await Promise.all(chunks.map(async (chunk, i) => {
+
+  async function processChunk(i) {
+    const chunk = chunks[i];
     const chunkHash = hashText(chunk);
     const chunkFile = path.join(CHUNKS_DIR, `${postId}_${hash}_chunk${i}_${chunkHash}.mp3`);
     if (await fileExists(chunkFile)) {
       console.log(`  Chunk ${i + 1}/${chunks.length}: cached`);
-      const buf = await fs.readFile(chunkFile);
-      completed++;
-      if (onProgress) onProgress(completed, chunks.length);
-      return buf;
+      audioBuffers[i] = await fs.readFile(chunkFile);
+    } else {
+      console.log(`  Chunk ${i + 1}/${chunks.length}: generating (${chunk.length} chars)`);
+      audioBuffers[i] = await generateChunkAudio(chunk, voice);
+      await fs.writeFile(chunkFile, audioBuffers[i]);
     }
-    console.log(`  Chunk ${i + 1}/${chunks.length}: generating (${chunk.length} chars)`);
-    const buffer = await generateChunkAudio(chunk, voice);
-    await fs.writeFile(chunkFile, buffer);
     completed++;
     if (onProgress) onProgress(completed, chunks.length);
-    return buffer;
-  }));
+  }
+
+  // Process in batches of CONCURRENCY
+  for (let i = 0; i < chunks.length; i += CONCURRENCY) {
+    const batch = [];
+    for (let j = i; j < Math.min(i + CONCURRENCY, chunks.length); j++) {
+      batch.push(processChunk(j));
+    }
+    await Promise.all(batch);
+  }
 
   const fullAudio = Buffer.concat(audioBuffers);
   await fs.writeFile(filepath, fullAudio);
 
+  // Fix MP3 duration header for concatenated files
   if (chunks.length > 1) {
     await fixMp3Duration(filepath);
   }
 
+  // Write ID3 tags (title, artist, cover art, etc.)
   if (metadata.title || metadata.imageUrl) {
     await tagMp3(filepath, { ...metadata, sourceUrl: `${RIALO_BASE}/posts/${postId}` });
   }
@@ -642,6 +712,7 @@ async function generateAudio(postId, text, metadata = {}, voiceOverride = null, 
   const url = `${BASE_URL}/audio/${filename}`;
   console.log(`Audio cached: ${url}`);
 
+  // Store voice label for versions display
   try {
     const meta = await loadVoiceMeta();
     meta[filename] = voice;
@@ -651,7 +722,7 @@ async function generateAudio(postId, text, metadata = {}, voiceOverride = null, 
   return { url, cached: false };
 }
 
-// ── Routes ──────────────────────────────────────────────
+// ── Routes ────────────────────────────────────────────────────────
 
 app.get('/api/narration/:postId', async (req, res) => {
   try {
@@ -705,6 +776,7 @@ app.get('/api/narration/:postId/auto-generate', adminAuth, async (req, res) => {
     const { postId } = req.params;
     const voiceOverride = req.query.voice || null;
 
+    // Check cache first
     const files = await fs.readdir(AUDIO_DIR);
     const activeMap = await loadActiveMap();
     const activeFile = activeMap[postId];
@@ -720,16 +792,19 @@ app.get('/api/narration/:postId/auto-generate', adminAuth, async (req, res) => {
       });
     }
 
+    // Check if a job is already running for this slug+voice
     const jobKey = postId + (voiceOverride || '');
     if (jobs[jobKey] && jobs[jobKey].status === 'running') {
       return res.json({ status: 'running', jobKey });
     }
 
+    // Start async job, respond immediately
     const job = { status: 'running', jobKey, startedAt: Date.now() };
-    jobs[jobKey] = job;
+    jobs[jobKey] = job; // in-memory only for running state
 
     res.json({ status: 'started', jobKey });
 
+    // Run generation in background
     (async () => {
       try {
         console.log(`Auto-generating audio for: ${postId}` + (voiceOverride ? ` (voice: ${voiceOverride})` : ''));
@@ -737,6 +812,7 @@ app.get('/api/narration/:postId/auto-generate', adminAuth, async (req, res) => {
         const metadata = await fetchArticleMetadata(postId);
         console.log(`Extracted ${text.length} chars, title: "${metadata.title}"`);
 
+        // Update job with chunk counts as generation progresses
         const onProgress = (completed, total) => {
           jobs[jobKey] = { ...jobs[jobKey], completedChunks: completed, totalChunks: total };
         };
@@ -806,18 +882,21 @@ app.get('/api/narration/:postId/delete', adminAuth, async (req, res) => {
       await fs.unlink(path.join(AUDIO_DIR, file));
     }
 
+    // Clean up chunks
     const chunkFiles = await fs.readdir(CHUNKS_DIR).catch(() => []);
     const chunkMatches = chunkFiles.filter(f => f.startsWith(`${postId}_`));
     for (const file of chunkMatches) {
       await fs.unlink(path.join(CHUNKS_DIR, file)).catch(() => {});
     }
 
+    // Clear active map entry
     const activeMap = await loadActiveMap();
     if (activeMap[postId]) {
       delete activeMap[postId];
       await saveActiveMap(activeMap);
     }
 
+    // Clear voice meta entries for this slug
     const voiceMeta = await loadVoiceMeta();
     let voiceMetaChanged = false;
     for (const filename of matches) {
@@ -825,6 +904,7 @@ app.get('/api/narration/:postId/delete', adminAuth, async (req, res) => {
     }
     if (voiceMetaChanged) await saveVoiceMeta(voiceMeta);
 
+    // Clear persisted job entries for this slug
     try {
       let jobsFile = {};
       try { jobsFile = JSON.parse(await fs.readFile(JOBS_PATH, 'utf8')); } catch {}
@@ -962,6 +1042,7 @@ async function scrapeArticles() {
     }
   }
 
+  // Fetch all titles in parallel — fall back to slug-based title if fetch fails
   const articles = await Promise.all([...seen].map(async (slug) => {
     const fallback = slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     try {
@@ -985,10 +1066,12 @@ app.get('/api/articles', async (req, res) => {
   try {
     const forceRefresh = req.query.refresh === '1';
 
+    // Serve cached list immediately unless force-refresh requested
     if (!forceRefresh) {
       const cached = await loadArticlesCache();
       if (cached && cached.length > 0) {
         res.json({ articles: cached, cached: true });
+        // Refresh cache in background so next load is fresh
         scrapeArticles().then(fresh => {
           if (fresh.length > 0) saveArticlesCache(fresh);
         }).catch(() => {});
@@ -996,6 +1079,7 @@ app.get('/api/articles', async (req, res) => {
       }
     }
 
+    // No cache or force refresh — scrape now
     const articles = await scrapeArticles();
     if (articles.length > 0) await saveArticlesCache(articles);
     res.json({ articles, cached: false });
