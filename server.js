@@ -166,10 +166,10 @@ function cleanTextForSpeech(text) {
     // ── Footnotes ──
     // Remove footnote reference numbers like [1], [2] and inline footnote markers like " 1 " or " 2 "
     .replace(/\[\d+\]/g, '')
-    .replace(/\u00B9/g, '').replace(/\u00B2/g, '').replace(/\u00B3/g, '')
+    .replace(/¹/g, '').replace(/²/g, '').replace(/³/g, '')
     // Remove footnote back-arrow and trailing footnote sections
     .replace(/↩/g, '')
-    .replace(/\u21A9/g, '')
+    .replace(/↩/g, '')
     // Remove entire footnotes section (everything after "Footnotes" heading)
     .replace(/Footnotes[\s\S]*$/i, '')
     // Strip trailing inline footnote numbers like "(Rex) 1" → "(Rex)"
@@ -212,7 +212,7 @@ function cleanTextForSpeech(text) {
     // Generic: any remaining 2-4 letter all-caps words get spelled out
     // (but skip common words like "IT", "OR", "AN", "AT", "IN", "ON", "TO", "DO", "IF", "IS", "OF", "SO", "UP", "US", "WE")
     .replace(/\b([A-Z]{2,4})\b/g, function(match) {
-      var skip = ['IT','OR','AN','AT','IN','ON','TO','DO','IF','IS','OF','SO','UP','US','WE','NO','BY','BE','HE','ME','MY','OK'];
+      var skip = ['IT','OR','AN','AT','IN','ON','TO','DO','IF','IS','OF','SO','UP','US','WE','NO','BY','BE','HE','ME','MY','OK','ATM','CEO','CFO','CTO'];
       if (skip.indexOf(match) !== -1) return match;
       // Check if it's already been spelled out (contains periods)
       if (match.indexOf('.') !== -1) return match;
@@ -270,7 +270,7 @@ function cleanTextForSpeech(text) {
     })
 
     // Subscript digits 0-9
-    .replace(/[\u2080-\u2089]/g, function(c) {
+    .replace(/[₀-₉]/g, function(c) {
       return ' sub ' + (c.charCodeAt(0) - 0x2080);
     })
     // Subscript letters (ᵢ, ₖ, ₙ, ₜ etc.)
@@ -280,26 +280,26 @@ function cleanTextForSpeech(text) {
     })
 
     // Superscript digits
-    .replace(/[\u2070\u00B9\u00B2\u00B3\u2074-\u2079]/g, function(c) {
-      var map = {'\u2070':'0','\u00B9':'1','\u00B2':'2','\u00B3':'3','\u2074':'4','\u2075':'5','\u2076':'6','\u2077':'7','\u2078':'8','\u2079':'9'};
+    .replace(/[⁰¹²³⁴-⁹]/g, function(c) {
+      var map = {'⁰':'0','¹':'1','²':'2','³':'3','⁴':'4','⁵':'5','⁶':'6','⁷':'7','⁸':'8','⁹':'9'};
       return ' to the power of ' + (map[c] || '');
     })
 
     // Common math symbols
-    .replace(/\u2264/g, ' less than or equal to ')
-    .replace(/\u2265/g, ' greater than or equal to ')
-    .replace(/\u2260/g, ' not equal to ')
-    .replace(/\u2248/g, ' approximately ')
-    .replace(/\u221E/g, ' infinity ')
-    .replace(/\u2208/g, ' in ')
-    .replace(/\u2209/g, ' not in ')
-    .replace(/\u2282/g, ' subset of ')
-    .replace(/\u222A/g, ' union ')
-    .replace(/\u2229/g, ' intersection ')
-    .replace(/\u2211/g, ' sum of ')
-    .replace(/\u220F/g, ' product of ')
-    .replace(/\u2202/g, ' partial ')
-    .replace(/\u222B/g, ' integral of ')
+    .replace(/≤/g, ' less than or equal to ')
+    .replace(/≥/g, ' greater than or equal to ')
+    .replace(/≠/g, ' not equal to ')
+    .replace(/≈/g, ' approximately ')
+    .replace(/∞/g, ' infinity ')
+    .replace(/∈/g, ' in ')
+    .replace(/∉/g, ' not in ')
+    .replace(/⊂/g, ' subset of ')
+    .replace(/∪/g, ' union ')
+    .replace(/∩/g, ' intersection ')
+    .replace(/∑/g, ' sum of ')
+    .replace(/∏/g, ' product of ')
+    .replace(/∂/g, ' partial ')
+    .replace(/∫/g, ' integral of ')
     .replace(/[·•]/g, ' times ')
     .replace(/×/g, ' times ')
     .replace(/÷/g, ' divided by ')
@@ -311,10 +311,10 @@ function cleanTextForSpeech(text) {
     .replace(/⟹/g, ' implies ')
 
     // Letterlike symbols (ℎ = Planck h, ℓ = script l, etc.)
-    .replace(/\u210E/g, 'h')
-    .replace(/\u2113/g, 'l')
-    .replace(/\u211C/g, 'R')
-    .replace(/\u2111/g, 'I')
+    .replace(/ℎ/g, 'h')
+    .replace(/ℓ/g, 'l')
+    .replace(/ℜ/g, 'R')
+    .replace(/ℑ/g, 'I')
 
     // Subscript plus/minus for expressions like Eᵢ₊₁
     .replace(/₊/g, ' plus ')
@@ -365,10 +365,12 @@ function cleanTextForSpeech(text) {
     .replace(/\$(\d[\d,.]*)\s*K\b/gi, '$1 thousand dollars')
     .replace(/\$(\d[\d,.]*)\s*(trillion|billion|million|thousand)\b/gi, '$1 $2 dollars')
     .replace(/\$(\d[\d,.]*)/g, '$1 dollars')
+    // Fix "150. dollars" → "150 dollars" (period before dollars from sentence boundary)
+    .replace(/(\d+)\.\s+dollars/g, '$1 dollars')
 
     // ── Strip non-BMP unicode and unpaired surrogates ──
     .replace(/[\uD800-\uDFFF]/g, '')
-    .replace(/[^\x00-\x7F\xA0-\xFF\u0100-\uFFFF]/g, '')
+    .replace(/[^\x00-\x7F\xA0-\xFFĀ-￿]/g, '')
     // Bold/italic math unicode to ASCII
     .replace(/[\u{1D400}-\u{1D7FF}]/gu, function(c) {
       var cp = c.codePointAt(0);
@@ -995,71 +997,78 @@ app.post('/api/narration/:postId/delete-version', adminAuth, async (req, res) =>
   }
 });
 
+const ARTICLES_CACHE_PATH = path.join(AUDIO_DIR, '.articles.json');
+
+async function loadArticlesCache() {
+  try { return JSON.parse(await fs.readFile(ARTICLES_CACHE_PATH, 'utf8')); } catch { return null; }
+}
+
+async function saveArticlesCache(articles) {
+  try { await fs.writeFile(ARTICLES_CACHE_PATH, JSON.stringify(articles, null, 2)); } catch {}
+}
+
+async function scrapeArticles() {
+  const seen = new Set();
+
+  for (const page of ['/blog', '/docs']) {
+    try {
+      const response = await fetch(`${RIALO_BASE}${page}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; RialoAudioBot/1.0)', 'Accept': 'text/html' }
+      });
+      if (!response.ok) continue;
+      const html = await response.text();
+      const regex = /href="[^"]*\/posts\/([^"#?\/]+)"/gi;
+      let match;
+      while ((match = regex.exec(html)) !== null) {
+        const slug = match[1].trim();
+        if (slug) seen.add(slug);
+      }
+    } catch (err) {
+      console.error(`Error scraping ${page}:`, err.message);
+    }
+  }
+
+  // Fetch all titles in parallel — fall back to slug-based title if fetch fails
+  const articles = await Promise.all([...seen].map(async (slug) => {
+    const fallback = slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    try {
+      const res = await fetch(`${RIALO_BASE}/posts/${slug}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; RialoAudioBot/1.0)', 'Accept': 'text/html' },
+        signal: AbortSignal.timeout(8000)
+      });
+      if (!res.ok) return { slug, title: fallback };
+      const html = await res.text();
+      const m = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+      const title = m ? m[1].replace(/<[^>]+>/g, '').trim() : fallback;
+      return { slug, title };
+    } catch { return { slug, title: fallback }; }
+  }));
+
+  articles.sort((a, b) => a.title.localeCompare(b.title));
+  return articles;
+}
+
 app.get('/api/articles', async (req, res) => {
   try {
-    const articles = [];
-    const seen = new Set();
-    const debug = { pages: [] };
+    const forceRefresh = req.query.refresh === '1';
 
-    for (const page of ['/blog', '/docs']) {
-      try {
-        const url = `${RIALO_BASE}${page}`;
-        console.log('Fetching:', url);
-        const response = await fetch(url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; RialoAudioBot/1.0)',
-            'Accept': 'text/html'
-          }
-        });
-        if (!response.ok) {
-          console.log(`Failed ${page}: ${response.status}`);
-          debug.pages.push({ page, status: response.status, slugs: 0 });
-          continue;
-        }
-        const html = await response.text();
-        console.log(`Got ${html.length} chars from ${page}`);
-
-        const pageSlugs = [];
-        // Match all href attributes pointing to /posts/
-        let match;
-        const regex = /href="[^"]*\/posts\/([^"#?]+)"/gi;
-        while ((match = regex.exec(html)) !== null) {
-          const slug = match[1].replace(/\/$/, '').trim();
-          if (slug && !seen.has(slug)) {
-            seen.add(slug);
-            pageSlugs.push(slug);
-          }
-        }
-
-        console.log(`Found ${pageSlugs.length} new slugs from ${page}:`, pageSlugs);
-        debug.pages.push({ page, htmlLength: html.length, slugs: pageSlugs.length, found: pageSlugs });
-      } catch (err) {
-        console.error(`Error on ${page}:`, err.message);
-        debug.pages.push({ page, error: err.message });
+    // Serve cached list immediately unless force-refresh requested
+    if (!forceRefresh) {
+      const cached = await loadArticlesCache();
+      if (cached && cached.length > 0) {
+        res.json({ articles: cached, cached: true });
+        // Refresh cache in background so next load is fresh
+        scrapeArticles().then(fresh => {
+          if (fresh.length > 0) saveArticlesCache(fresh);
+        }).catch(() => {});
+        return;
       }
     }
 
-    // Fetch titles from each post page
-    for (const slug of seen) {
-      let title = slug.replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
-      try {
-        const postRes = await fetch(`${RIALO_BASE}/posts/${slug}`, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; RialoAudioBot/1.0)', 'Accept': 'text/html' }
-        });
-        if (postRes.ok) {
-          const postHtml = await postRes.text();
-          const titleMatch = postHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
-          if (titleMatch) {
-            title = titleMatch[1].replace(/<[^>]+>/g, '').trim();
-          }
-        }
-      } catch (err) {}
-      articles.push({ slug, title });
-    }
-
-    articles.sort((a, b) => a.title.localeCompare(b.title));
-    console.log('Total articles:', articles.length);
-    res.json({ articles, debug });
+    // No cache or force refresh — scrape now
+    const articles = await scrapeArticles();
+    if (articles.length > 0) await saveArticlesCache(articles);
+    res.json({ articles, cached: false });
   } catch (err) {
     console.error('Articles error:', err);
     res.status(500).json({ error: err.message });
