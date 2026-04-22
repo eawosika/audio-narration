@@ -381,8 +381,6 @@ function renderGen(slug){
 
   // Spotify section
   var spotSec=document.createElement('div');spotSec.className='spotify-section';
-
-  // Header row: label + Go to Spotify link
   var spotHeader=document.createElement('div');spotHeader.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:12px';
   var spotLabel=document.createElement('div');spotLabel.className='gen-section-label';spotLabel.style.margin='0';spotLabel.textContent='Spotify episode';
   var spotLink=document.createElement('a');spotLink.href='https://creators.spotify.com/pod/show/7M9lOKzdEE39kGl2PhjFyt/home';spotLink.target='_blank';
@@ -392,7 +390,6 @@ function renderGen(slug){
   spotHeader.appendChild(spotLabel);spotHeader.appendChild(spotLink);
   spotSec.appendChild(spotHeader);
 
-  // Episode URL input
   var spotRow=document.createElement('div');spotRow.className='spotify-row';
   var spotInput=document.createElement('input');spotInput.className='spotify-input';spotInput.placeholder='https://open.spotify.com/episode/...';
   var spotSaveBtn=document.createElement('button');spotSaveBtn.className='btn btn-primary btn-sm';spotSaveBtn.textContent='Save';
@@ -400,7 +397,6 @@ function renderGen(slug){
   spotRow.appendChild(spotInput);spotRow.appendChild(spotSaveBtn);
   spotSec.appendChild(spotRow);spotSec.appendChild(spotMsg);
 
-  // Episode description generator
   var descSec=document.createElement('div');descSec.style.cssText='margin-top:16px;padding-top:16px;border-top:1px solid rgba(240,238,234,0.06)';
   var descHeader=document.createElement('div');descHeader.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:8px';
   var descLabel=document.createElement('div');descLabel.style.cssText='font-size:11px;color:rgba(240,238,234,0.35)';descLabel.textContent='Episode description';
@@ -415,10 +411,8 @@ function renderGen(slug){
   descActions.appendChild(descCopyBtn);descActions.appendChild(descMsg);
   descSec.appendChild(descHeader);descSec.appendChild(descArea);descSec.appendChild(descActions);
   spotSec.appendChild(descSec);
-
   el.appendChild(spotSec);
 
-  // Load existing Spotify URL
   fetch(API+'/api/spotify/'+slug).then(function(r){return r.json()}).then(function(d){
     if(d.url)spotInput.value=d.url;
   }).catch(function(){});
@@ -428,7 +422,7 @@ function renderGen(slug){
     fetch(API+'/api/spotify/'+slug,{method:'POST',headers:authHeaders(),body:JSON.stringify({url:url})})
     .then(function(r){return r.json()})
     .then(function(){spotMsg.textContent=url?'Saved':'Cleared';setTimeout(function(){spotMsg.textContent=''},2000)})
-    .catch(function(err){spotMsg.textContent='Error: '+err.message;spotMsg.style.color='rgba(240,100,100,0.8)'});
+    .catch(function(err){spotMsg.textContent='Error: '+err.message;spotMsg.style.color='rgba(240,100,100,0.8)'})
   };
 
   descCopyBtn.onclick=function(){
@@ -437,7 +431,6 @@ function renderGen(slug){
     });
   };
 
-  // Save description to localStorage
   var descSaveBtn=document.createElement('button');descSaveBtn.className='btn btn-primary btn-sm';descSaveBtn.textContent='Save';descSaveBtn.style.display='none';
   descActions.insertBefore(descSaveBtn,descCopyBtn);
 
@@ -447,14 +440,12 @@ function renderGen(slug){
     setTimeout(function(){descMsg.textContent=''},2000);
   };
 
-  // Show save/copy buttons whenever textarea has content
   descArea.oninput=function(){
     var hasContent=descArea.value.trim().length>0;
     descSaveBtn.style.display=hasContent?'inline-block':'none';
     descCopyBtn.style.display=hasContent?'inline-block':'none';
   };
 
-  // Load saved description on render
   var saved=localStorage.getItem('np_desc_'+slug);
   if(saved){
     descArea.value=saved;
@@ -519,7 +510,6 @@ function startGen(slug,voice,card,btn){
     controls.insertBefore(resumeBtn,stopBtn.nextSibling);
   };
 
-  // Minimal fake animation just for the first few seconds before first poll
   var progInterval=setInterval(function(){
     var w=parseFloat(bar.style.width)||10;
     if(w<15)bar.style.width=(w+1)+'%';
@@ -541,7 +531,6 @@ function startGen(slug,voice,card,btn){
       return;
     }
 
-    // If already cached, done immediately
     if(d.status==='already_cached'||d.url){
       clearInterval(progInterval);
       status.textContent='Generated successfully';
@@ -559,14 +548,12 @@ function startGen(slug,voice,card,btn){
       return;
     }
 
-    // Job started — begin polling
     var jobKey=d.jobKey;
     var pollCount=0;
-    var maxPolls=120; // 10 minutes at 5s intervals
+    var maxPolls=120;
 
     function handleDone(url,textLength){
       clearInterval(pollInterval);clearInterval(progInterval);
-      // Remove any leftover Stop/Resume buttons
       controls.querySelectorAll('button').forEach(function(b){
         if(b.textContent==='Stop'||b.textContent==='Resume')b.remove();
       });
@@ -596,16 +583,12 @@ function startGen(slug,voice,card,btn){
     }
 
     var pollInterval=setInterval(function(){
-      // Even if cancelled by user, keep polling silently — server may have finished
       pollCount++;
       if(pollCount>maxPolls){handlePollError('Timed out waiting for generation');return}
-
-      // First check job status
       fetch(API+'/api/narration/'+slug+'/job-status?token='+encodeURIComponent(TOKEN)+'&voice='+encodeURIComponent(voice.id))
       .then(function(r){return r.json()})
       .then(function(job){
         if(job.status==='running'){
-          // Update real progress if chunk data available
           if(job.totalChunks&&job.totalChunks>0){
             var realPct=Math.round((job.completedChunks||0)/job.totalChunks*100);
             bar.style.width=Math.max(realPct,parseFloat(bar.style.width)||10)+'%';
@@ -615,24 +598,13 @@ function startGen(slug,voice,card,btn){
           }
           return;
         }
-        if(job.status==='done'||job.url){
-          handleDone(job.url,job.textLength);
-          return;
-        }
-        if(job.status==='error'){
-          handlePollError(job.error||'Unknown error');
-          return;
-        }
-        // job not_found or ambiguous — fall back to checking narration directly
+        if(job.status==='done'||job.url){handleDone(job.url,job.textLength);return;}
+        if(job.status==='error'){handlePollError(job.error||'Unknown error');return;}
         fetch(API+'/api/narration/'+slug)
         .then(function(r){return r.json()})
-        .then(function(n){
-          if(n.exists&&n.url){handleDone(n.url,null)}
-          // else keep polling
-        }).catch(function(){});
+        .then(function(n){if(n.exists&&n.url){handleDone(n.url,null)}}).catch(function(){});
       })
       .catch(function(){
-        // Poll request failed — fall back to checking narration directly
         fetch(API+'/api/narration/'+slug)
         .then(function(r){return r.json()})
         .then(function(n){if(n.exists&&n.url)handleDone(n.url,null)})
@@ -694,7 +666,6 @@ function loadVersions(slug){
       if(isActive){var at=document.createElement('span');at.className='version-active-tag';at.textContent='Active';tags.appendChild(at)}
 
       var actions=document.createElement('div');actions.className='version-actions';
-
       var dlBtn=document.createElement('button');dlBtn.className='btn btn-ghost btn-sm';dlBtn.textContent='Download';
       dlBtn.onclick=function(){window.location.href=API+'/api/narration/'+slug+'/download?token='+encodeURIComponent(TOKEN)+'&filename='+encodeURIComponent(v.filename)};
       actions.appendChild(dlBtn);
